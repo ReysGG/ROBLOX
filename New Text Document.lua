@@ -1,7 +1,8 @@
--- LOW HUB - SEED OVERLAY
+ -- LOW HUB - SEED GUI INVESTIGATOR
     -- LocalScript / client script
-    -- Separate GUI from original game GUI
-    -- Does not destroy original GUI
+    -- Separate overlay GUI
+    -- Does not destroy original game GUI
+    -- ASCII only
 
     local Players = game:GetService("Players")
     local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,8 +12,10 @@
     local Player = Players.LocalPlayer
     local PlayerGui = Player:WaitForChild("PlayerGui")
 
-    local GUI_NAME = "LowHubSeedOverlay"
+    local GUI_NAME = "LowHubSeedInvestigator"
     local DESTINATION = "Seed Shop"
+
+    local ScannedButtons = {}
 
     local function log(msg)
         print("[LowHubSeed] " .. tostring(msg))
@@ -22,19 +25,20 @@
         warn("[LowHubSeed] " .. tostring(msg))
     end
 
-    -- Only remove our own GUI, not original game GUI
-    local old = PlayerGui:FindFirstChild(GUI_NAME)
-    if old then
-        old:Destroy()
-    end
-
-    pcall(function()
-        local core = game:GetService("CoreGui")
-        local oldCore = core:FindFirstChild(GUI_NAME)
-        if oldCore then
-            oldCore:Destroy()
+    local function destroyOld()
+        local old = PlayerGui:FindFirstChild(GUI_NAME)
+        if old then
+            old:Destroy()
         end
-    end)
+
+        pcall(function()
+            local core = game:GetService("CoreGui")
+            local oldCore = core:FindFirstChild(GUI_NAME)
+            if oldCore then
+                oldCore:Destroy()
+            end
+        end)
+    end
 
     local function corner(obj, radius)
         local c = Instance.new("UICorner")
@@ -57,14 +61,14 @@
         p.Parent = obj
     end
 
+    local function shortPos(v)
+        return string.format("%.1f, %.1f, %.1f", v.X, v.Y, v.Z)
+    end
+
     local function getRoot()
         local character = Player.Character or Player.CharacterAdded:Wait()
         local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
         return root
-    end
-
-    local function shortPos(v)
-        return string.format("%.1f, %.1f, %.1f", v.X, v.Y, v.Z)
     end
 
     local function getTeleportRemote()
@@ -95,6 +99,213 @@
         return remote, nil
     end
 
+    local function getText(obj)
+        local text = ""
+
+        pcall(function()
+            if obj:IsA("TextButton") or obj:IsA("TextLabel") or obj:IsA("TextBox") then
+                text = obj.Text or ""
+            end
+        end)
+
+        return text
+    end
+
+    local function getParentChain(obj)
+        local parts = {}
+        local current = obj
+
+        while current and current ~= game do
+            table.insert(parts, 1, current.Name)
+            current = current.Parent
+        end
+
+        return table.concat(parts, ".")
+    end
+
+    local function hasAncestorName(obj, keyword)
+        local current = obj
+
+        keyword = string.lower(keyword)
+
+        while current and current ~= game do
+            if string.lower(current.Name or ""):find(keyword) then
+                return true
+            end
+            current = current.Parent
+        end
+
+        return false
+    end
+
+    local function isVisibleChain(obj)
+        local current = obj
+
+        while current and current ~= game do
+            if current:IsA("GuiObject") then
+                if current.Visible == false then
+                    return false
+                end
+            end
+            current = current.Parent
+        end
+
+        return true
+    end
+
+    local function safeAbsPos(obj)
+        local ok, result = pcall(function()
+            return obj.AbsolutePosition
+        end)
+
+        if ok then
+            return result
+        end
+
+        return Vector2.new(0, 0)
+    end
+
+    local function safeAbsSize(obj)
+        local ok, result = pcall(function()
+            return obj.AbsoluteSize
+        end)
+
+        if ok then
+            return result
+        end
+
+        return Vector2.new(0, 0)
+    end
+
+    local function isLikelyClickable(obj)
+        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
+            return true
+        end
+
+        return false
+    end
+
+    local function scanButtons(filterMode)
+        ScannedButtons = {}
+
+        print("========== LOW HUB SEED GUI SCAN ==========")
+        print("FilterMode:", tostring(filterMode))
+        print("Time:", os.date("%X"))
+        print("-------------------------------------------")
+
+        local roots = {
+            PlayerGui
+        }
+
+        pcall(function()
+            table.insert(roots, game:GetService("CoreGui"))
+        end)
+
+        local printed = 0
+
+        for _, root in ipairs(roots) do
+            print("ROOT:", root:GetFullName())
+
+            for _, obj in ipairs(root:GetDescendants()) do
+                local include = false
+
+                if isLikelyClickable(obj) then
+                    include = true
+                end
+
+                if filterMode == "main_frame" then
+                    include = include and hasAncestorName(obj, "main_frame")
+                elseif filterMode == "seed_shop_related" then
+                    local text = string.lower(getText(obj) or "")
+                    local name = string.lower(obj.Name or "")
+                    include = include and (
+                        text:find("seed") or
+                        text:find("shop") or
+                        name:find("seed") or
+                        name:find("shop") or
+                        hasAncestorName(obj, "seed") or
+                        hasAncestorName(obj, "shop")
+                    )
+                end
+
+                if include then
+                    local absPos = safeAbsPos(obj)
+                    local absSize = safeAbsSize(obj)
+                    local text = getText(obj)
+                    local visible = isVisibleChain(obj)
+                    local sizeOk = absSize.X > 0 and absSize.Y > 0
+
+                    table.insert(ScannedButtons, obj)
+                    printed = printed + 1
+
+                    print("[" .. tostring(#ScannedButtons) .. "]")
+                    print("Class:", obj.ClassName)
+                    print("Name:", obj.Name)
+                    print("Text:", text)
+                    print("Path:", obj:GetFullName())
+                    print("Chain:", getParentChain(obj))
+                    print("VisibleChain:", tostring(visible))
+                    print("SizeOK:", tostring(sizeOk))
+                    print("AbsolutePosition:", tostring(absPos))
+                    print("AbsoluteSize:", tostring(absSize))
+
+                    pcall(function()
+                        print("Active:", tostring(obj.Active))
+                    end)
+
+                    pcall(function()
+                        print("Selectable:", tostring(obj.Selectable))
+                    end)
+
+                    pcall(function()
+                        print("AutoButtonColor:", tostring(obj.AutoButtonColor))
+                    end)
+
+                    print("-------------------------------------------")
+                end
+            end
+        end
+
+        print("TOTAL SCANNED BUTTONS:", tostring(#ScannedButtons))
+        print("===========================================")
+
+        return #ScannedButtons
+    end
+
+    local function scanGuiObjectsByMainFrame()
+        print("========== LOW HUB MAIN_FRAME OBJECT SCAN ==========")
+
+        local count = 0
+
+        for _, obj in ipairs(PlayerGui:GetDescendants()) do
+            if hasAncestorName(obj, "main_frame") then
+                if obj:IsA("GuiObject") then
+                    count = count + 1
+                    local text = getText(obj)
+                    local absPos = safeAbsPos(obj)
+                    local absSize = safeAbsSize(obj)
+
+                    print("[" .. tostring(count) .. "]")
+                    print("Class:", obj.ClassName)
+                    print("Name:", obj.Name)
+                    print("Text:", text)
+                    print("Path:", obj:GetFullName())
+                    print("VisibleChain:", tostring(isVisibleChain(obj)))
+                    print("AbsolutePosition:", tostring(absPos))
+                    print("AbsoluteSize:", tostring(absSize))
+                    print("-------------------------------------------")
+                end
+            end
+        end
+
+        print("TOTAL MAIN_FRAME GUIOBJECTS:", tostring(count))
+        print("====================================================")
+
+        return count
+    end
+
+    destroyOld()
+
     local Gui = Instance.new("ScreenGui")
     Gui.Name = GUI_NAME
     Gui.ResetOnSpawn = false
@@ -114,8 +325,8 @@
 
     local Main = Instance.new("Frame")
     Main.Name = "Main"
-    Main.Size = UDim2.new(0, 370, 0, 310)
-    Main.Position = UDim2.new(0.5, -185, 0.5, -155)
+    Main.Size = UDim2.new(0, 390, 0, 390)
+    Main.Position = UDim2.new(0.5, -195, 0.5, -195)
     Main.BackgroundColor3 = Color3.fromRGB(18, 22, 18)
     Main.BorderSizePixel = 0
     Main.Active = true
@@ -148,7 +359,7 @@
     Title.Size = UDim2.new(1, -55, 1, 0)
     Title.Position = UDim2.new(0, 12, 0, 0)
     Title.BackgroundTransparency = 1
-    Title.Text = "LOW HUB - SEED OVERLAY"
+    Title.Text = "LOW HUB - SEED INVESTIGATOR"
     Title.TextColor3 = Color3.fromRGB(57, 255, 20)
     Title.TextSize = 14
     Title.Font = Enum.Font.GothamBold
@@ -172,11 +383,11 @@
 
     local Status = Instance.new("TextLabel")
     Status.Name = "Status"
-    Status.Size = UDim2.new(1, -24, 0, 60)
+    Status.Size = UDim2.new(1, -24, 0, 66)
     Status.Position = UDim2.new(0, 12, 0, 55)
     Status.BackgroundColor3 = Color3.fromRGB(30, 35, 30)
     Status.BorderSizePixel = 0
-    Status.Text = "Status: Ready"
+    Status.Text = "Status: Ready. Use Scan buttons, then send output."
     Status.TextColor3 = Color3.fromRGB(180, 180, 180)
     Status.TextSize = 11
     Status.Font = Enum.Font.Gotham
@@ -190,11 +401,11 @@
 
     local Info = Instance.new("TextLabel")
     Info.Name = "Info"
-    Info.Size = UDim2.new(1, -24, 0, 45)
-    Info.Position = UDim2.new(0, 12, 0, 125)
+    Info.Size = UDim2.new(1, -24, 0, 48)
+    Info.Position = UDim2.new(0, 12, 0, 130)
     Info.BackgroundColor3 = Color3.fromRGB(24, 28, 24)
     Info.BorderSizePixel = 0
-    Info.Text = "Our GUI is separate from original GUI.\nRemote: PlayerTeleportTriggered(\"Seed Shop\")"
+    Info.Text = "Scan output appears in console.\nThen use index to click a scanned button."
     Info.TextColor3 = Color3.fromRGB(150, 160, 150)
     Info.TextSize = 10
     Info.Font = Enum.Font.Gotham
@@ -215,7 +426,7 @@
         b.BorderSizePixel = 0
         b.Text = text
         b.TextColor3 = Color3.fromRGB(255, 255, 255)
-        b.TextSize = 12
+        b.TextSize = 11
         b.Font = Enum.Font.GothamBold
         b.ZIndex = 1001
         b.Parent = Main
@@ -224,11 +435,32 @@
         return b
     end
 
-    local FireBtn = makeButton("FireBtn", "Fire Seed Remote", 12, 182, 346, 34, Color3.fromRGB(35, 55, 35))
-    local ScanBtn = makeButton("ScanBtn", "Scan Original GUI", 12, 224, 168, 32, Color3.fromRGB(35, 45, 55))
-    local ClickBtn = makeButton("ClickBtn", "Try Click Original Seed", 190, 224, 168, 32, Color3.fromRGB(55, 45, 35))
-    local PosBtn = makeButton("PosBtn", "Print Position", 12, 264, 168, 30, Color3.fromRGB(45, 35, 55))
-    local HideBtn = makeButton("HideBtn", "Hide Our GUI", 190, 264, 168, 30, Color3.fromRGB(45, 45, 45))
+    local ScanAllBtn = makeButton("ScanAllBtn", "Scan All Buttons", 12, 190, 178, 32, Color3.fromRGB(35, 45, 55))
+    local ScanMainBtn = makeButton("ScanMainBtn", "Scan main_frame", 200, 190, 178, 32, Color3.fromRGB(35, 45, 55))
+    local ScanObjBtn = makeButton("ScanObjBtn", "Scan main_frame Objects", 12, 230, 366, 32, Color3.fromRGB(45, 45, 55))
+    local FireSeedBtn = makeButton("FireSeedBtn", "Fire Seed Remote", 12, 270, 178, 32, Color3.fromRGB(35, 55, 35))
+    local PosBtn = makeButton("PosBtn", "Print Position", 200, 270, 178, 32, Color3.fromRGB(45, 35, 55))
+
+    local IndexBox = Instance.new("TextBox")
+    IndexBox.Name = "IndexBox"
+    IndexBox.Size = UDim2.new(0, 110, 0, 32)
+    IndexBox.Position = UDim2.new(0, 12, 0, 312)
+    IndexBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    IndexBox.BorderSizePixel = 0
+    IndexBox.Text = "1"
+    IndexBox.PlaceholderText = "Index"
+    IndexBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    IndexBox.PlaceholderColor3 = Color3.fromRGB(140, 140, 140)
+    IndexBox.TextSize = 12
+    IndexBox.Font = Enum.Font.Gotham
+    IndexBox.ZIndex = 1001
+    IndexBox.Parent = Main
+    corner(IndexBox, 6)
+    stroke(IndexBox, Color3.fromRGB(57, 255, 20), 1, 0.7)
+
+    local ClickIndexBtn = makeButton("ClickIndexBtn", "Click Index", 132, 312, 116, 32, Color3.fromRGB(55, 45, 35))
+    local PrintIndexBtn = makeButton("PrintIndexBtn", "Print Index", 260, 312, 118, 32, Color3.fromRGB(45, 45, 35))
+    local HideBtn = makeButton("HideBtn", "Hide Our GUI", 12, 352, 366, 28, Color3.fromRGB(45, 45, 45))
 
     local Icon = Instance.new("TextButton")
     Icon.Name = "OpenIcon"
@@ -257,11 +489,14 @@
         if not remote then
             setStatus(err, Color3.fromRGB(255, 80, 80))
             warnlog(err)
-            return false
+            return
         end
 
+        local before = nil
         local root = getRoot()
-        local before = root and root.Position or nil
+        if root then
+            before = root.Position
+        end
 
         setStatus("Firing Seed Shop remote...", Color3.fromRGB(255, 220, 80))
 
@@ -276,7 +511,7 @@
         if not ok then
             setStatus("FireServer error", Color3.fromRGB(255, 80, 80))
             warnlog(fireErr)
-            return false
+            return
         end
 
         log('Fired: PlayerTeleportTriggered("Seed Shop")')
@@ -284,6 +519,7 @@
         task.wait(1)
 
         local afterRoot = getRoot()
+
         if before and afterRoot then
             local after = afterRoot.Position
             local dist = (after - before).Magnitude
@@ -294,184 +530,121 @@
 
             if dist >= 10 then
                 setStatus("Moved " .. tostring(math.floor(dist)) .. " studs", Color3.fromRGB(57, 255, 20))
-                return true
             else
                 setStatus("Request sent, no movement. Pos: " .. shortPos(after), Color3.fromRGB(255, 150, 80))
-                return false
             end
-        end
-
-        setStatus("Request sent", Color3.fromRGB(57, 255, 20))
-        return true
-    end
-
-    local function objectText(obj)
-        local text = ""
-
-        pcall(function()
-            if obj:IsA("TextButton") or obj:IsA("TextLabel") or obj:IsA("TextBox") then
-                text = obj.Text or ""
-            end
-        end)
-
-        return text
-    end
-
-    local function isSeedRelated(obj)
-        local n = string.lower(obj.Name or "")
-        local t = string.lower(objectText(obj) or "")
-
-        if n:find("seed") then return true end
-        if t:find("seed") then return true end
-        if n:find("shop") and t:find("shop") then return true end
-        if t:find("seed shop") then return true end
-
-        return false
-    end
-
-    local function scanOriginalGui()
-        local count = 0
-        local firstButton = nil
-
-        print("========== LOW HUB ORIGINAL GUI SCAN ==========")
-
-        for _, obj in ipairs(PlayerGui:GetDescendants()) do
-            if obj.Name ~= GUI_NAME and not obj:IsDescendantOf(Gui) then
-                if isSeedRelated(obj) then
-                    count = count + 1
-
-                    local text = objectText(obj)
-
-                    print("[" .. count .. "]")
-                    print("Class:", obj.ClassName)
-                    print("Name:", obj.Name)
-                    print("Text:", text)
-                    print("Path:", obj:GetFullName())
-
-                    pcall(function()
-                        print("Visible:", tostring(obj.Visible))
-                    end)
-
-                    pcall(function()
-                        print("Active:", tostring(obj.Active))
-                    end)
-
-                    print("--------------------------------------")
-
-                    if not firstButton then
-                        if obj:IsA("TextButton") or obj:IsA("ImageButton") then
-                            firstButton = obj
-                        else
-                            local p = obj.Parent
-                            while p and p ~= PlayerGui do
-                                if p:IsA("TextButton") or p:IsA("ImageButton") then
-                                    firstButton = p
-                                    break
-                                end
-                                p = p.Parent
-                            end
-                        end
-                    end
-                end
-            end
-        end
-
-        print("Found seed/shop related objects:", count)
-        print("===============================================")
-
-        if firstButton then
-            setStatus("Found button: " .. firstButton.Name, Color3.fromRGB(57, 255, 20))
-            log("First possible button: " .. firstButton:GetFullName())
         else
-            setStatus("Scan done. Found " .. tostring(count) .. " objects, no button", Color3.fromRGB(255, 220, 80))
+            setStatus("Request sent", Color3.fromRGB(57, 255, 20))
         end
-
-        return firstButton, count
     end
 
-    local function findOriginalSeedButton()
-        local best = nil
+    local function printPosition()
+        local root = getRoot()
 
-        for _, obj in ipairs(PlayerGui:GetDescendants()) do
-            if not obj:IsDescendantOf(Gui) then
-                if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and isSeedRelated(obj) then
-                    best = obj
-                    break
-                end
-            end
+        if root then
+            setStatus("Pos: " .. shortPos(root.Position), Color3.fromRGB(180, 220, 255))
+            log("Position: " .. shortPos(root.Position))
+        else
+            setStatus("No HumanoidRootPart", Color3.fromRGB(255, 80, 80))
         end
-
-        if best then
-            return best
-        end
-
-        for _, obj in ipairs(PlayerGui:GetDescendants()) do
-            if not obj:IsDescendantOf(Gui) then
-                if (obj:IsA("TextLabel") or obj:IsA("TextBox")) and isSeedRelated(obj) then
-                    local p = obj.Parent
-
-                    while p and p ~= PlayerGui do
-                        if p:IsA("TextButton") or p:IsA("ImageButton") then
-                            return p
-                        end
-                        p = p.Parent
-                    end
-                end
-            end
-        end
-
-        return nil
     end
 
-    local function tryClickOriginalSeed()
-        local btn = findOriginalSeedButton()
-
-        if not btn then
-            local found
-            found = scanOriginalGui()
-            btn = found
+    local function getIndex()
+        local n = tonumber(IndexBox.Text)
+        if not n then
+            return nil
         end
 
-        if not btn then
-            setStatus("Original Seed button not found", Color3.fromRGB(255, 80, 80))
-            warnlog("Original Seed button not found")
+        return math.floor(n)
+    end
+
+    local function printButtonAtIndex()
+        local idx = getIndex()
+
+        if not idx then
+            setStatus("Invalid index", Color3.fromRGB(255, 80, 80))
             return
         end
 
-        setStatus("Clicking original: " .. btn.Name, Color3.fromRGB(255, 220, 80))
-        log("Click original button: " .. btn:GetFullName())
+        local obj = ScannedButtons[idx]
 
-        local okSignal = false
+        if not obj then
+            setStatus("No button at index " .. tostring(idx), Color3.fromRGB(255, 80, 80))
+            return
+        end
+
+        print("========== LOW HUB BUTTON INDEX ==========")
+        print("Index:", idx)
+        print("Class:", obj.ClassName)
+        print("Name:", obj.Name)
+        print("Text:", getText(obj))
+        print("Path:", obj:GetFullName())
+        print("Chain:", getParentChain(obj))
+        print("VisibleChain:", tostring(isVisibleChain(obj)))
+        print("AbsolutePosition:", tostring(safeAbsPos(obj)))
+        print("AbsoluteSize:", tostring(safeAbsSize(obj)))
+        print("==========================================")
+
+        setStatus("Printed index " .. tostring(idx) .. ": " .. obj.Name, Color3.fromRGB(180, 220, 255))
+    end
+
+    local function clickButtonAtIndex()
+        local idx = getIndex()
+
+        if not idx then
+            setStatus("Invalid index", Color3.fromRGB(255, 80, 80))
+            return
+        end
+
+        local obj = ScannedButtons[idx]
+
+        if not obj then
+            setStatus("No button at index " .. tostring(idx), Color3.fromRGB(255, 80, 80))
+            return
+        end
+
+        setStatus("Clicking index " .. tostring(idx) .. ": " .. obj.Name, Color3.fromRGB(255, 220, 80))
+        log("Click index " .. tostring(idx) .. ": " .. obj:GetFullName())
+
+        local usedSignal = false
 
         if firesignal then
             pcall(function()
-                firesignal(btn.MouseButton1Click)
-                okSignal = true
+                firesignal(obj.MouseButton1Click)
+                usedSignal = true
             end)
         end
 
-        if not okSignal and getconnections then
+        if not usedSignal and getconnections then
             pcall(function()
-                local cons = getconnections(btn.MouseButton1Click)
+                local cons = getconnections(obj.MouseButton1Click)
+                log("Connections: " .. tostring(#cons))
+
                 for _, con in ipairs(cons) do
                     pcall(function()
                         con:Fire()
                     end)
                 end
-                okSignal = true
+
+                usedSignal = true
             end)
         end
 
-        if okSignal then
-            setStatus("Fired original button signal", Color3.fromRGB(57, 255, 20))
+        if usedSignal then
+            setStatus("Fired signal for index " .. tostring(idx), Color3.fromRGB(57, 255, 20))
             return
         end
 
-        local absPos = btn.AbsolutePosition
-        local absSize = btn.AbsoluteSize
+        local pos = safeAbsPos(obj)
+        local size = safeAbsSize(obj)
 
-        local x = absPos.X + absSize.X / 2
-        local y = absPos.Y + absSize.Y / 2
+        if size.X <= 0 or size.Y <= 0 then
+            setStatus("Button has zero size", Color3.fromRGB(255, 80, 80))
+            return
+        end
+
+        local x = pos.X + size.X / 2
+        local y = pos.Y + size.Y / 2
 
         pcall(function()
             VirtualInputManager:SendMouseButtonEvent(x, y, 0, true, game, 0)
@@ -479,29 +652,38 @@
             VirtualInputManager:SendMouseButtonEvent(x, y, 0, false, game, 0)
         end)
 
-        setStatus("Sent virtual click to original button", Color3.fromRGB(57, 255, 20))
+        setStatus("Virtual clicked index " .. tostring(idx), Color3.fromRGB(57, 255, 20))
     end
 
-    FireBtn.MouseButton1Click:Connect(function()
+    ScanAllBtn.MouseButton1Click:Connect(function()
+        local count = scanButtons("all")
+        setStatus("Scan All done. Buttons: " .. tostring(count) .. ". Send console output.", Color3.fromRGB(57, 255, 20))
+    end)
+
+    ScanMainBtn.MouseButton1Click:Connect(function()
+        local count = scanButtons("main_frame")
+        setStatus("Scan main_frame done. Buttons: " .. tostring(count) .. ". Send console output.", Color3.fromRGB(57, 255, 20))
+    end)
+
+    ScanObjBtn.MouseButton1Click:Connect(function()
+        local count = scanGuiObjectsByMainFrame()
+        setStatus("main_frame object scan done. Objects: " .. tostring(count), Color3.fromRGB(57, 255, 20))
+    end)
+
+    FireSeedBtn.MouseButton1Click:Connect(function()
         fireSeedRemote()
     end)
 
-    ScanBtn.MouseButton1Click:Connect(function()
-        scanOriginalGui()
-    end)
-
-    ClickBtn.MouseButton1Click:Connect(function()
-        tryClickOriginalSeed()
-    end)
-
     PosBtn.MouseButton1Click:Connect(function()
-        local root = getRoot()
-        if root then
-            setStatus("Pos: " .. shortPos(root.Position), Color3.fromRGB(180, 220, 255))
-            log("Position: " .. shortPos(root.Position))
-        else
-            setStatus("No HumanoidRootPart", Color3.fromRGB(255, 80, 80))
-        end
+        printPosition()
+    end)
+
+    ClickIndexBtn.MouseButton1Click:Connect(function()
+        clickButtonAtIndex()
+    end)
+
+    PrintIndexBtn.MouseButton1Click:Connect(function()
+        printButtonAtIndex()
     end)
 
     HideBtn.MouseButton1Click:Connect(function()
@@ -552,11 +734,11 @@
     local remote, err = getTeleportRemote()
 
     if remote then
-        setStatus("Ready. Our GUI loaded. Remote found.", Color3.fromRGB(57, 255, 20))
+        setStatus("Ready. Remote found. Start with Scan main_frame.", Color3.fromRGB(57, 255, 20))
         log("Remote found: " .. remote:GetFullName())
     else
         setStatus(err, Color3.fromRGB(255, 80, 80))
         warnlog(err)
     end
 
-    log("LowHub Seed Overlay loaded")
+    log("LowHub Seed Investigator loaded")
