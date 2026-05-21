@@ -86,7 +86,7 @@ local Players = game:GetService("Players")
   status.TextXAlignment = Enum.TextXAlignment.Left
   status.Parent = frame
 
-  local function teleportSeedShop()
+  function teleportSeedShop()
       local args = {
           "Seed Shop"
       }
