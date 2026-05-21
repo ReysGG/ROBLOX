@@ -1,6 +1,6 @@
- -- LOW HUB - SEED SHOP TELEPORT DEBUG
+ -- LOW HUB - SEED TELEPORT TEST
     -- LocalScript
-    -- Focus only on PlayerTeleportTriggered("Seed Shop")
+    -- Focus Seed Shop only
     -- ASCII only
 
     local Players = game:GetService("Players")
@@ -10,8 +10,9 @@
     local Player = Players.LocalPlayer
     local PlayerGui = Player:WaitForChild("PlayerGui")
 
-    local GUI_NAME = "LowHubSeedTeleportDebug"
+    local GUI_NAME = "LowHubSeedTeleportTest"
     local DESTINATION = "Seed Shop"
+    local SEED_POS = Vector3.new(37.3, 3.0, -27.4)
 
     local function log(msg)
         print("[LowHubSeed] " .. tostring(msg))
@@ -21,18 +22,20 @@
         warn("[LowHubSeed] " .. tostring(msg))
     end
 
-    local old = PlayerGui:FindFirstChild(GUI_NAME)
-    if old then
-        old:Destroy()
-    end
-
-    pcall(function()
-        local core = game:GetService("CoreGui")
-        local oldCore = core:FindFirstChild(GUI_NAME)
-        if oldCore then
-            oldCore:Destroy()
+    local function destroyOld()
+        local old = PlayerGui:FindFirstChild(GUI_NAME)
+        if old then
+            old:Destroy()
         end
-    end)
+
+        pcall(function()
+            local core = game:GetService("CoreGui")
+            local oldCore = core:FindFirstChild(GUI_NAME)
+            if oldCore then
+                oldCore:Destroy()
+            end
+        end)
+    end
 
     local function corner(obj, radius)
         local c = Instance.new("UICorner")
@@ -48,19 +51,22 @@
         s.Parent = obj
     end
 
-    local function pad(obj, l, r, t, b)
+    local function pad(obj, l, r)
         local p = Instance.new("UIPadding")
-        p.PaddingLeft = UDim.new(0, l or 0)
-        p.PaddingRight = UDim.new(0, r or 0)
-        p.PaddingTop = UDim.new(0, t or 0)
-        p.PaddingBottom = UDim.new(0, b or 0)
+        p.PaddingLeft = UDim.new(0, l or 8)
+        p.PaddingRight = UDim.new(0, r or 8)
         p.Parent = obj
     end
 
-    local function getRoot()
-        local character = Player.Character or Player.CharacterAdded:Wait()
-        local root = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
-        return root
+    local function shortVec(v)
+        return string.format("%.1f, %.1f, %.1f", v.X, v.Y, v.Z)
+    end
+
+    local function getCharacter()
+        local char = Player.Character or Player.CharacterAdded:Wait()
+        local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+        local root = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 5)
+        return char, hum, root
     end
 
     local function getRemote()
@@ -89,6 +95,8 @@
         return remote, nil
     end
 
+    destroyOld()
+
     local Gui = Instance.new("ScreenGui")
     Gui.Name = GUI_NAME
     Gui.ResetOnSpawn = false
@@ -108,8 +116,8 @@
 
     local Main = Instance.new("Frame")
     Main.Name = "Main"
-    Main.Size = UDim2.new(0, 360, 0, 260)
-    Main.Position = UDim2.new(0.5, -180, 0.5, -130)
+    Main.Size = UDim2.new(0, 360, 0, 300)
+    Main.Position = UDim2.new(0.5, -180, 0.5, -150)
     Main.BackgroundColor3 = Color3.fromRGB(18, 22, 18)
     Main.BorderSizePixel = 0
     Main.Active = true
@@ -139,7 +147,7 @@
     Title.Size = UDim2.new(1, -55, 1, 0)
     Title.Position = UDim2.new(0, 12, 0, 0)
     Title.BackgroundTransparency = 1
-    Title.Text = "LOW HUB - SEED TELEPORT"
+    Title.Text = "LOW HUB - SEED TEST"
     Title.TextColor3 = Color3.fromRGB(57, 255, 20)
     Title.TextSize = 14
     Title.Font = Enum.Font.GothamBold
@@ -161,7 +169,7 @@
 
     local Status = Instance.new("TextLabel")
     Status.Name = "Status"
-    Status.Size = UDim2.new(1, -24, 0, 55)
+    Status.Size = UDim2.new(1, -24, 0, 58)
     Status.Position = UDim2.new(0, 12, 0, 55)
     Status.BackgroundColor3 = Color3.fromRGB(30, 35, 30)
     Status.BorderSizePixel = 0
@@ -174,15 +182,15 @@
     Status.TextWrapped = true
     Status.Parent = Main
     corner(Status, 6)
-    pad(Status, 8, 8, 0, 0)
+    pad(Status, 8, 8)
 
     local Info = Instance.new("TextLabel")
     Info.Name = "Info"
     Info.Size = UDim2.new(1, -24, 0, 42)
-    Info.Position = UDim2.new(0, 12, 0, 118)
+    Info.Position = UDim2.new(0, 12, 0, 122)
     Info.BackgroundColor3 = Color3.fromRGB(24, 28, 24)
     Info.BorderSizePixel = 0
-    Info.Text = "Remote: ReplicatedStorage.GameEvents.PlayerTeleportTriggered\nArg: Seed Shop"
+    Info.Text = "Remote arg: Seed Shop\nSeed pos estimate: " .. shortVec(SEED_POS)
     Info.TextColor3 = Color3.fromRGB(150, 160, 150)
     Info.TextSize = 10
     Info.Font = Enum.Font.Gotham
@@ -190,7 +198,7 @@
     Info.TextYAlignment = Enum.TextYAlignment.Center
     Info.Parent = Main
     corner(Info, 6)
-    pad(Info, 8, 8, 0, 0)
+    pad(Info, 8, 8)
 
     local function makeButton(name, text, x, y, w, h, color)
         local b = Instance.new("TextButton")
@@ -209,33 +217,57 @@
         return b
     end
 
-    local FireBtn = makeButton("FireBtn", "Fire Seed Shop", 12, 172, 336, 38, Color3.fromRGB(35, 55, 35))
-    local RetryBtn = makeButton("RetryBtn", "Retry x3", 12, 218, 106, 30, Color3.fromRGB(45, 45, 35))
-    local PosBtn = makeButton("PosBtn", "Print Pos", 127, 218, 106, 30, Color3.fromRGB(35, 45, 55))
-    local TestBtn = makeButton("TestBtn", "Test Remote", 242, 218, 106, 30, Color3.fromRGB(45, 35, 45))
+    local FireBtn = makeButton("FireBtn", "Fire Seed Remote", 12, 176, 336, 34, Color3.fromRGB(35, 55, 35))
+    local MoveBtn = makeButton("MoveBtn", "Local Move Seed Pos", 12, 218, 336, 34, Color3.fromRGB(35, 45, 65))
+    local ComboBtn = makeButton("ComboBtn", "Move Then Fire", 12, 260, 164, 28, Color3.fromRGB(55, 45, 35))
+    local PosBtn = makeButton("PosBtn", "Print Pos", 184, 260, 164, 28, Color3.fromRGB(45, 35, 55))
 
     local function setStatus(text, color)
         Status.Text = "Status: " .. tostring(text)
         Status.TextColor3 = color or Color3.fromRGB(180, 180, 180)
     end
 
-    local function shortVec(v)
-        return string.format("%.1f, %.1f, %.1f", v.X, v.Y, v.Z)
-    end
-
     local function printPosition()
-        local root = getRoot()
+        local char, hum, root = getCharacter()
+
         if not root then
             setStatus("No HumanoidRootPart", Color3.fromRGB(255, 80, 80))
-            return
+            return nil
         end
 
         local pos = root.Position
-        log("Player position: " .. shortVec(pos))
-        setStatus("Position: " .. shortVec(pos), Color3.fromRGB(180, 220, 255))
+        log("Player pos: " .. shortVec(pos))
+        setStatus("Player pos: " .. shortVec(pos), Color3.fromRGB(180, 220, 255))
+        return pos
     end
 
-    local function fireOnce()
+    local function localMoveSeed()
+        local char, hum, root = getCharacter()
+
+        if not char or not root then
+            setStatus("Character/root not found", Color3.fromRGB(255, 80, 80))
+            return false
+        end
+
+        local target = CFrame.new(SEED_POS + Vector3.new(0, 2, 0))
+
+        root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+        pcall(function()
+            char:PivotTo(target)
+        end)
+
+        task.wait(0.2)
+
+        local newPos = root.Position
+        setStatus("Local moved to: " .. shortVec(newPos), Color3.fromRGB(180, 220, 255))
+        log("Local moved to: " .. shortVec(newPos))
+
+        return true
+    end
+
+    local function fireSeedRemote()
         local remote, err = getRemote()
 
         if not remote then
@@ -244,10 +276,10 @@
             return false
         end
 
-        local root = getRoot()
+        local char, hum, root = getCharacter()
         local before = root and root.Position or nil
 
-        setStatus("Firing Seed Shop...", Color3.fromRGB(255, 220, 80))
+        setStatus("Firing Seed Shop remote...", Color3.fromRGB(255, 220, 80))
 
         local ok, fireErr = pcall(function()
             local args = {
@@ -263,11 +295,11 @@
             return false
         end
 
-        log("Fired PlayerTeleportTriggered with arg: " .. DESTINATION)
+        log("Fired PlayerTeleportTriggered: " .. DESTINATION)
 
         task.wait(1)
 
-        local afterRoot = getRoot()
+        local , , afterRoot = getCharacter()
 
         if before and afterRoot then
             local after = afterRoot.Position
@@ -275,7 +307,7 @@
 
             log("Before: " .. shortVec(before))
             log("After: " .. shortVec(after))
-            log("Distance: " .. tostring(math.floor(dist)))
+            log("Dist: " .. tostring(math.floor(dist)))
 
             if dist >= 10 then
                 setStatus("Moved " .. tostring(math.floor(dist)) .. " studs", Color3.fromRGB(57, 255, 20))
@@ -291,35 +323,25 @@
     end
 
     FireBtn.MouseButton1Click:Connect(function()
-        fireOnce()
+        fireSeedRemote()
     end)
 
-    RetryBtn.MouseButton1Click:Connect(function()
+    MoveBtn.MouseButton1Click:Connect(function()
+        localMoveSeed()
+    end)
+
+    ComboBtn.MouseButton1Click:Connect(function()
         task.spawn(function()
-            for i = 1, 3 do
-                setStatus("Retry " .. tostring(i) .. "/3", Color3.fromRGB(255, 220, 80))
-                local moved = fireOnce()
-                if moved then
-                    break
-                end
-                task.wait(0.8)
+            local moved = localMoveSeed()
+            if moved then
+                task.wait(0.5)
+                fireSeedRemote()
             end
         end)
     end)
 
     PosBtn.MouseButton1Click:Connect(function()
         printPosition()
-    end)
-
-    TestBtn.MouseButton1Click:Connect(function()
-        local remote, err = getRemote()
-        if remote then
-            setStatus("Remote OK: " .. remote.Name, Color3.fromRGB(57, 255, 20))
-            log("Remote OK: " .. remote:GetFullName())
-        else
-            setStatus(err, Color3.fromRGB(255, 80, 80))
-            warnlog(err)
-        end
     end)
 
     CloseBtn.MouseButton1Click:Connect(function()
@@ -358,6 +380,7 @@
     end)
 
     local remote, err = getRemote()
+
     if remote then
         setStatus("Ready. Remote found.", Color3.fromRGB(57, 255, 20))
         log("Remote found: " .. remote:GetFullName())
@@ -366,4 +389,4 @@
         warnlog(err)
     end
 
-    log("Seed teleport debug GUI loaded")
+    log("Seed teleport test GUI loaded")
