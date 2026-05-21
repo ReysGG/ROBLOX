@@ -1,137 +1,177 @@
-getgenv().AutoFarm = true
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VirtualInputManager = game:GetService("VirtualInputManager")
-local lplr = Players.LocalPlayer
-local remote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SummerHarvestRemoteEvent")
-local function getHumanoidRootPart()
-    local char = lplr.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        return char.HumanoidRootPart
+ -- LOW HUB - HONEY SEED SHOP UI TEST
+    -- Opens EventShopUIController:Open("Honey Seed Shop")
+
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local UserInputService = game:GetService("UserInputService")
+
+    local Player = Players.LocalPlayer
+    local PlayerGui = Player:WaitForChild("PlayerGui")
+
+    local GUI_NAME = "LowHubHoneySeedShopTest"
+
+    local old = PlayerGui:FindFirstChild(GUI_NAME)
+    if old then
+        old:Destroy()
     end
-    return nil
-end
-local function teleportTo(position)
-    local hrp = getHumanoidRootPart()
-    if hrp then
-        hrp.CFrame = CFrame.new(position)
+
+    local function corner(obj, r)
+        local c = Instance.new("UICorner")
+        c.CornerRadius = UDim.new(0, r or 8)
+        c.Parent = obj
     end
-end
-local function spamEUntilFruitGone(fruit)
-    if not fruit or not fruit.PrimaryPart then
-        return
+
+    local Gui = Instance.new("ScreenGui")
+    Gui.Name = GUI_NAME
+    Gui.ResetOnSpawn = false
+    Gui.DisplayOrder = 999999
+    Gui.Parent = PlayerGui
+
+    local Main = Instance.new("Frame")
+    Main.Size = UDim2.new(0, 330, 0, 170)
+    Main.Position = UDim2.new(0, 30, 0.5, -85)
+    Main.BackgroundColor3 = Color3.fromRGB(14, 20, 14)
+    Main.BorderSizePixel = 0
+    Main.Active = true
+    Main.Parent = Gui
+    corner(Main, 10)
+
+    local Stroke = Instance.new("UIStroke")
+    Stroke.Color = Color3.fromRGB(57, 255, 20)
+    Stroke.Thickness = 2
+    Stroke.Parent = Main
+
+    local Header = Instance.new("Frame")
+    Header.Size = UDim2.new(1, 0, 0, 40)
+    Header.BackgroundColor3 = Color3.fromRGB(20, 34, 20)
+    Header.BorderSizePixel = 0
+    Header.Active = true
+    Header.Parent = Main
+    corner(Header, 10)
+
+    local Title = Instance.new("TextLabel")
+    Title.Size = UDim2.new(1, -55, 1, 0)
+    Title.Position = UDim2.new(0, 12, 0, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = "LOW HUB - HONEY SEED"
+    Title.TextColor3 = Color3.fromRGB(57, 255, 20)
+    Title.TextSize = 14
+    Title.Font = Enum.Font.GothamBold
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Header
+
+    local Close = Instance.new("TextButton")
+    Close.Size = UDim2.new(0, 30, 0, 30)
+    Close.Position = UDim2.new(1, -36, 0, 5)
+    Close.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    Close.BorderSizePixel = 0
+    Close.Text = "X"
+    Close.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Close.TextSize = 14
+    Close.Font = Enum.Font.GothamBold
+    Close.Parent = Header
+    corner(Close, 6)
+
+    local Status = Instance.new("TextLabel")
+    Status.Size = UDim2.new(1, -24, 0, 42)
+    Status.Position = UDim2.new(0, 12, 0, 55)
+    Status.BackgroundColor3 = Color3.fromRGB(24, 32, 24)
+    Status.BorderSizePixel = 0
+    Status.Text = "Status: Ready"
+    Status.TextColor3 = Color3.fromRGB(190, 210, 190)
+    Status.TextSize = 11
+    Status.Font = Enum.Font.Gotham
+    Status.TextXAlignment = Enum.TextXAlignment.Left
+    Status.Parent = Main
+    corner(Status, 6)
+
+    local Pad = Instance.new("UIPadding")
+    Pad.PaddingLeft = UDim.new(0, 8)
+    Pad.PaddingRight = UDim.new(0, 8)
+    Pad.Parent = Status
+
+    local OpenBtn = Instance.new("TextButton")
+    OpenBtn.Size = UDim2.new(1, -24, 0, 42)
+    OpenBtn.Position = UDim2.new(0, 12, 0, 112)
+    OpenBtn.BackgroundColor3 = Color3.fromRGB(35, 55, 35)
+    OpenBtn.BorderSizePixel = 0
+    OpenBtn.Text = "Open Honey Seed Shop"
+    OpenBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    OpenBtn.TextSize = 13
+    OpenBtn.Font = Enum.Font.GothamBold
+    OpenBtn.Parent = Main
+    corner(OpenBtn, 6)
+
+    local function setStatus(text, color)
+        Status.Text = "Status: " .. tostring(text)
+        Status.TextColor3 = color or Color3.fromRGB(190, 210, 190)
     end
-    local fruitExists = true
-    local conn
-    conn = fruit.AncestryChanged:Connect(function(_, parent)
-        if not parent then
-            fruitExists = false
-            conn:Disconnect()
+
+    local function openHoneySeedShop()
+        setStatus("Requiring EventShopUIController...", Color3.fromRGB(255, 220, 80))
+
+        local ok, controller = pcall(function()
+            return require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EventShopUIController"))
+        end)
+
+        if not ok then
+            setStatus("Require failed", Color3.fromRGB(255, 80, 80))
+            warn("[LowHub] Require failed:", controller)
+            return
+        end
+
+        setStatus("Opening Honey Seed Shop...", Color3.fromRGB(255, 220, 80))
+
+        local openOk, openErr = pcall(function()
+            controller:Open("Honey Seed Shop")
+        end)
+
+        if openOk then
+            setStatus("Opened Honey Seed Shop", Color3.fromRGB(57, 255, 20))
+            print("[LowHub] EventShopUIController:Open(\"Honey Seed Shop\")")
+        else
+            setStatus("Open failed", Color3.fromRGB(255, 80, 80))
+            warn("[LowHub] Open failed:", openErr)
+        end
+    end
+
+    OpenBtn.MouseButton1Click:Connect(function()
+        openHoneySeedShop()
+    end)
+
+    Close.MouseButton1Click:Connect(function()
+        Gui:Destroy()
+    end)
+
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+
+    Header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Main.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
     end)
-    while fruitExists and getgenv().AutoFarm do
-        local ok, err = pcall(function()
-            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-            wait(0.05)
-            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-        end)
-        if not ok then
-            warn("Error when spamming E key: " .. tostring(err))
-            break
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+
+            Main.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
         end
-        wait(0.2)
-    end
-end
-local function getOwnedFarms()
-    local farms = {}
-    local FarmObjects = workspace:WaitForChild("Farm"):GetChildren()
-    for _, farm in ipairs(FarmObjects) do
-        local success, isOwned = pcall(function()
-            return farm.Important.Data.Owner.Value == lplr.Name
-        end)
-        if success and isOwned then
-            table.insert(farms, farm)
-        end
-    end
-    return farms
-end
-local function getPlantsFromFarm(farm)
-    local plants = {}
-    local plantsFolder = farm.Important:FindFirstChild("Plants_Physical")
-    if plantsFolder then
-        for _, plant in ipairs(plantsFolder:GetChildren()) do
-            if plant:IsA("Model") then
-                table.insert(plants, plant)
-            end
-        end
-    end
-    return plants
-end
-local function getFruitsFromPlant(plant)
-    local fruits = {}
-    local fruitsFolder = plant:FindFirstChild("Fruits")
-    if fruitsFolder then
-        for _, fruit in ipairs(fruitsFolder:GetChildren()) do
-            if fruit:IsA("Model") and fruit.PrimaryPart then
-                table.insert(fruits, fruit)
-            end
-        end
-    end
-    return fruits
-end
-local function isWithinFirstTenMinutes()
-    local time = os.date("*t")
-    return time.min >= 0 and time.min < 10
-end
-local function pauseFunction()
-    local hrp = getHumanoidRootPart()
-    if hrp then
-        hrp.CFrame = CFrame.new(-116.40152, 4.40001249, -12.4976292, 0.871914983, 0, 0.489657342, 0, 1, 0, -0.489657342, 0, 0.871914983)
-    end
-    remote:FireServer("SubmitAllPlants")
-end
-task.spawn(function()
-    while true do
-        getgenv().sh = isWithinFirstTenMinutes()
-        wait(5)
-    end
-end)
-task.spawn(function()
-    while true do
-        if getgenv().AutoFarm and getgenv().sh then
-            local hrp = getHumanoidRootPart()
-            if not hrp then
-                wait(3)
-            else
-                local farms = getOwnedFarms()
-                if #farms == 0 then
-                    wait(5)
-                else
-                    for _, farm in ipairs(farms) do
-                        local plants = getPlantsFromFarm(farm)
-                        for _, plant in ipairs(plants) do
-                            local fruits = getFruitsFromPlant(plant)
-                            for _, fruit in ipairs(fruits) do
-                                if not getgenv().AutoFarm or not getgenv().sh then break end
-                                if fruit and fruit.Name == "Tomato" and fruit.PrimaryPart then
-                                    teleportTo(fruit.PrimaryPart.Position)
-                                    wait(0.1)
-                                    spamEUntilFruitGone(fruit)
-                                end
-                            end
-                            if not getgenv().AutoFarm or not getgenv().sh then break end
-                        end
-                    end
-                end
-            end
-            wait(25)
-            for i = 1, 5 do
-                if not getgenv().AutoFarm then break end
-                pauseFunction()
-                wait(1)
-            end
-        else
-            wait(1)
-        end
-    end
-end)
+    end)
+
+    print("[LowHub] Honey Seed Shop test GUI loaded")
