@@ -1,111 +1,137 @@
+getgenv().AutoFarm = true
 local Players = game:GetService("Players")
-  local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-  local player = Players.LocalPlayer
-  local playerGui = player:WaitForChild("PlayerGui")
-
-  local gameEvents = ReplicatedStorage:WaitForChild("GameEvents")
-  local teleportRemote = gameEvents:WaitForChild("PlayerTeleportTriggered")
-
-  local oldGui = playerGui:FindFirstChild("TeleportGui")
-  if oldGui then
-      oldGui:Destroy()
-  end
-
-  local screenGui = Instance.new("ScreenGui")
-  screenGui.Name = "TeleportGui"
-  screenGui.ResetOnSpawn = false
-  screenGui.IgnoreGuiInset = true
-  screenGui.Parent = playerGui
-
-  local frame = Instance.new("Frame")
-  frame.Name = "Main"
-  frame.Size = UDim2.new(0, 260, 0, 145)
-  frame.Position = UDim2.new(0, 30, 0, 130)
-  frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-  frame.BorderSizePixel = 0
-  frame.Active = true
-  frame.Draggable = true
-  frame.Parent = screenGui
-
-  local frameCorner = Instance.new("UICorner")
-  frameCorner.CornerRadius = UDim.new(0, 10)
-  frameCorner.Parent = frame
-
-  local title = Instance.new("TextLabel")
-  title.Name = "Title"
-  title.Size = UDim2.new(1, -45, 0, 35)
-  title.Position = UDim2.new(0, 12, 0, 0)
-  title.BackgroundTransparency = 1
-  title.Text = "Teleport GUI"
-  title.TextColor3 = Color3.fromRGB(255, 255, 255)
-  title.TextSize = 17
-  title.Font = Enum.Font.GothamBold
-  title.TextXAlignment = Enum.TextXAlignment.Left
-  title.Parent = frame
-
-  local closeButton = Instance.new("TextButton")
-  closeButton.Name = "Close"
-  closeButton.Size = UDim2.new(0, 30, 0, 30)
-  closeButton.Position = UDim2.new(1, -36, 0, 4)
-  closeButton.BackgroundColor3 = Color3.fromRGB(190, 60, 60)
-  closeButton.Text = "X"
-  closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-  closeButton.TextSize = 14
-  closeButton.Font = Enum.Font.GothamBold
-  closeButton.Parent = frame
-
-  local closeCorner = Instance.new("UICorner")
-  closeCorner.CornerRadius = UDim.new(0, 8)
-  closeCorner.Parent = closeButton
-
-  local seedButton = Instance.new("TextButton")
-  seedButton.Name = "SeedShopButton"
-  seedButton.Size = UDim2.new(1, -24, 0, 42)
-  seedButton.Position = UDim2.new(0, 12, 0, 48)
-  seedButton.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
-  seedButton.Text = "Teleport: Seed Shop"
-  seedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-  seedButton.TextSize = 15
-  seedButton.Font = Enum.Font.GothamSemibold
-  seedButton.Parent = frame
-
-  local seedCorner = Instance.new("UICorner")
-  seedCorner.CornerRadius = UDim.new(0, 8)
-  seedCorner.Parent = seedButton
-
-  local status = Instance.new("TextLabel")
-  status.Name = "Status"
-  status.Size = UDim2.new(1, -24, 0, 30)
-  status.Position = UDim2.new(0, 12, 0, 100)
-  status.BackgroundTransparency = 1
-  status.Text = "Ready"
-  status.TextColor3 = Color3.fromRGB(200, 200, 200)
-  status.TextSize = 13
-  status.Font = Enum.Font.Gotham
-  status.TextXAlignment = Enum.TextXAlignment.Left
-  status.Parent = frame
-
-  function teleportSeedShop()
-      local args = {
-          "Seed Shop"
-      }
-
-      status.Text = "Mengirim teleport..."
-
-      local success, err = pcall(function()
-          teleportRemote:FireServer(unpack(args))
-      end)
-
-      if success then
-          status.Text = "Request terkirim: Seed Shop"
-      else
-          status.Text = "Gagal: " .. tostring(err)
-      end
-  end
-
-  seedButton.MouseButton1Click:Connect(teleportSeedShop)
-
-  closeButton.MouseButton1Click:Connect(function()
-      screenGui:Destroy()
-  end)
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local lplr = Players.LocalPlayer
+local remote = ReplicatedStorage:WaitForChild("GameEvents"):WaitForChild("SummerHarvestRemoteEvent")
+local function getHumanoidRootPart()
+    local char = lplr.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        return char.HumanoidRootPart
+    end
+    return nil
+end
+local function teleportTo(position)
+    local hrp = getHumanoidRootPart()
+    if hrp then
+        hrp.CFrame = CFrame.new(position)
+    end
+end
+local function spamEUntilFruitGone(fruit)
+    if not fruit or not fruit.PrimaryPart then
+        return
+    end
+    local fruitExists = true
+    local conn
+    conn = fruit.AncestryChanged:Connect(function(_, parent)
+        if not parent then
+            fruitExists = false
+            conn:Disconnect()
+        end
+    end)
+    while fruitExists and getgenv().AutoFarm do
+        local ok, err = pcall(function()
+            VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            wait(0.05)
+            VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+        end)
+        if not ok then
+            warn("Error when spamming E key: " .. tostring(err))
+            break
+        end
+        wait(0.2)
+    end
+end
+local function getOwnedFarms()
+    local farms = {}
+    local FarmObjects = workspace:WaitForChild("Farm"):GetChildren()
+    for _, farm in ipairs(FarmObjects) do
+        local success, isOwned = pcall(function()
+            return farm.Important.Data.Owner.Value == lplr.Name
+        end)
+        if success and isOwned then
+            table.insert(farms, farm)
+        end
+    end
+    return farms
+end
+local function getPlantsFromFarm(farm)
+    local plants = {}
+    local plantsFolder = farm.Important:FindFirstChild("Plants_Physical")
+    if plantsFolder then
+        for _, plant in ipairs(plantsFolder:GetChildren()) do
+            if plant:IsA("Model") then
+                table.insert(plants, plant)
+            end
+        end
+    end
+    return plants
+end
+local function getFruitsFromPlant(plant)
+    local fruits = {}
+    local fruitsFolder = plant:FindFirstChild("Fruits")
+    if fruitsFolder then
+        for _, fruit in ipairs(fruitsFolder:GetChildren()) do
+            if fruit:IsA("Model") and fruit.PrimaryPart then
+                table.insert(fruits, fruit)
+            end
+        end
+    end
+    return fruits
+end
+local function isWithinFirstTenMinutes()
+    local time = os.date("*t")
+    return time.min >= 0 and time.min < 10
+end
+local function pauseFunction()
+    local hrp = getHumanoidRootPart()
+    if hrp then
+        hrp.CFrame = CFrame.new(-116.40152, 4.40001249, -12.4976292, 0.871914983, 0, 0.489657342, 0, 1, 0, -0.489657342, 0, 0.871914983)
+    end
+    remote:FireServer("SubmitAllPlants")
+end
+task.spawn(function()
+    while true do
+        getgenv().sh = isWithinFirstTenMinutes()
+        wait(5)
+    end
+end)
+task.spawn(function()
+    while true do
+        if getgenv().AutoFarm and getgenv().sh then
+            local hrp = getHumanoidRootPart()
+            if not hrp then
+                wait(3)
+            else
+                local farms = getOwnedFarms()
+                if #farms == 0 then
+                    wait(5)
+                else
+                    for _, farm in ipairs(farms) do
+                        local plants = getPlantsFromFarm(farm)
+                        for _, plant in ipairs(plants) do
+                            local fruits = getFruitsFromPlant(plant)
+                            for _, fruit in ipairs(fruits) do
+                                if not getgenv().AutoFarm or not getgenv().sh then break end
+                                if fruit and fruit.Name == "Tomato" and fruit.PrimaryPart then
+                                    teleportTo(fruit.PrimaryPart.Position)
+                                    wait(0.1)
+                                    spamEUntilFruitGone(fruit)
+                                end
+                            end
+                            if not getgenv().AutoFarm or not getgenv().sh then break end
+                        end
+                    end
+                end
+            end
+            wait(25)
+            for i = 1, 5 do
+                if not getgenv().AutoFarm then break end
+                pauseFunction()
+                wait(1)
+            end
+        else
+            wait(1)
+        end
+    end
+end)
