@@ -1,4 +1,4 @@
-- LOW HUB - HONEY SEED NPC TELEPORT
+
     -- LocalScript / client script
     -- Teleports character to workspace.NPCS.HoneySeedShop
     -- Also can open EventShopUIController:Open("Honey Seed Shop")
