@@ -282,6 +282,8 @@ local activeEggs    = {}   -- [uuid] = object
 local eggWeightData = {}   -- [uuid] = actual weight from server
 local weightCache   = {}   -- [eggName..petName] = range table
 local espRenderConn = nil
+local espAddedConn  = nil
+local espRemovedConn = nil
 local eggModels     = nil
 local eggPets       = nil
 local espListCallbacks = {} -- callbacks to refresh UI list
@@ -453,8 +455,8 @@ end
 
 local function getObjFromId(id)
     if not eggModels then return nil end
-    for m in eggModels do
-        if m:GetAttribute("OBJECT_UUID") == id then return m end
+    for _, m in pairs(eggModels) do
+        if typeof(m) == "Instance" and m:GetAttribute("OBJECT_UUID") == id then return m end
     end
     return nil
 end
@@ -569,21 +571,26 @@ local function clearAllEspDrawings()
 end
 
 local function enableEsp()
+    if espEnabled then return end
     espEnabled = true
-    -- Scan existing eggs
     for _, obj in ipairs(CollectionService:GetTagged("PetEggServer")) do
         task.spawn(addEsp, obj)
     end
-    -- Connect signals
-    CollectionService:GetInstanceAddedSignal("PetEggServer"):Connect(addEsp)
-    CollectionService:GetInstanceRemovedSignal("PetEggServer"):Connect(removeEsp)
-    -- Start render loop
-    espRenderConn = RunService.PreRender:Connect(updateAllEsp)
+    if not espAddedConn then
+        espAddedConn = CollectionService:GetInstanceAddedSignal("PetEggServer"):Connect(addEsp)
+    end
+    if not espRemovedConn then
+        espRemovedConn = CollectionService:GetInstanceRemovedSignal("PetEggServer"):Connect(removeEsp)
+    end
+    local renderSignal = RunService.PreRender or RunService.RenderStepped
+    espRenderConn = renderSignal:Connect(updateAllEsp)
 end
 
 local function disableEsp()
     espEnabled = false
     if espRenderConn then espRenderConn:Disconnect(); espRenderConn = nil end
+    if espAddedConn then espAddedConn:Disconnect(); espAddedConn = nil end
+    if espRemovedConn then espRemovedConn:Disconnect(); espRemovedConn = nil end
     clearAllEspDrawings()
     for _, cb in ipairs(espListCallbacks) do pcall(cb) end
 end
@@ -1263,11 +1270,21 @@ CopyBtn.MouseButton1Click:Connect(function()
     for _, l in ipairs(logLines) do
         table.insert(lines, string.format("[%s] %s  %s", l.ts, l.tag, l.msg))
     end
-    pcall(function()
+    if type(setclipboard) ~= "function" then
+        pushLog("ERR", "setclipboard unavailable", C.red)
+        setStatus("Clipboard unavailable", C.red)
+        return
+    end
+    local ok = pcall(function()
         setclipboard(table.concat(lines, "\n"))
+    end)
+    if ok then
         pushLog("SYS", "Copied " .. #logLines .. " lines", C.blue)
         setStatus("Copied " .. #logLines .. " log lines", C.blue)
-    end)
+    else
+        pushLog("ERR", "Clipboard copy failed", C.red)
+        setStatus("Clipboard failed", C.red)
+    end
 end)
 
 ClearLogBtn.MouseButton1Click:Connect(function()
@@ -1292,6 +1309,11 @@ RunBtn.MouseButton1Click:Connect(function()
     pushLog("SYS", "Running...", C.textDim)
     setStatus("Running script...", C.yellow)
     task.spawn(function()
+        if type(loadstring) ~= "function" then
+            pushLog("ERR", "loadstring unavailable in this executor", C.red)
+            setStatus("Executor unsupported", C.red)
+            return
+        end
         local fn, err = loadstring(code)
         if not fn then
             pushLog("ERR", "Compile: " .. tostring(err), C.red)
@@ -2103,6 +2125,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     print = _origPrint
     warn  = _origWarn
     if espEnabled then disableEsp() end
+    clearAllEspDrawings()
     Gui:Destroy()
 end)
 
