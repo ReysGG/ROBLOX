@@ -1,4 +1,4 @@
--- LOW HUB v4.1.28 - Grow a Garden
+-- LOW HUB v4.1.27 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.28 boot"
+BootBtn.Text = "LowHub v4.1.27 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.28 start")
+bootStatus("LowHub v4.1.27 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.28"
+VerLbl.Text = "v4.1.27"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1474,10 +1474,10 @@ local seedOptions = {
     "Beanstalk",
 }
 local selectedSeedIndex = 1
-farmSeedModes = { "Selected", "Priority", "Any Owned" }
-farmBuyModes = { "OFF", "Selected", "Priority" }
-farmSeedModeIndex = 1
-farmBuyModeIndex = 1
+local farmSeedModes = { "Selected", "Priority", "Any Owned" }
+local farmBuyModes = { "OFF", "Selected", "Priority" }
+local farmSeedModeIndex = 1
+local farmBuyModeIndex = 1
 local autoBuyEnabled = false
 local autoBuyThread = nil
 local autoSellEnabled = false
@@ -1501,8 +1501,8 @@ local AutoBuyBtn = actionBtn(PFARM, "Auto Buy: OFF", C.surface, 32)
 local AutoSellBtn = actionBtn(PFARM, "Auto Sell: OFF", C.surface, 32)
 
 sectionLbl(PFARM, "AUTO FARM SETTINGS")
-FarmSeedModeBtn = actionBtn(PFARM, "Farm Seed: Selected", C.surface, 32)
-FarmBuyModeBtn = actionBtn(PFARM, "Farm Buy: OFF", C.surface, 32)
+local FarmSeedModeBtn = actionBtn(PFARM, "Farm Seed: Selected", C.surface, 32)
+local FarmBuyModeBtn = actionBtn(PFARM, "Farm Buy: OFF", C.surface, 32)
 
 sectionLbl(PFARM, "AUTO FARM RUN")
 AutoFarmBtn = actionBtn(PFARM, "Auto Farm: OFF", C.surface, 32)
@@ -2678,7 +2678,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.28"
+    FallbackBtn.Text = "LowHub v4.1.27"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2745,7 +2745,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.28 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.27 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.28 initialized")
+print("[LowHub] v4.1.27 initialized")
