@@ -1,4 +1,4 @@
--- LOW HUB v4.2 — Grow a Garden
+-- LOW HUB v4.2.1 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -859,7 +859,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.2"
+VerLbl.Text = "v4.2.1"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -2300,163 +2300,19 @@ end)
 table.insert(espListCallbacks, rebuildPetDetectorList)
 
 sectionLbl(PESP, "AUTO HATCH DEV")
-
-local HatchCard = Instance.new("Frame")
-HatchCard.Size = UDim2.new(1, 0, 0, 176)
-HatchCard.BackgroundColor3 = C.surface
-HatchCard.BorderSizePixel = 0
-HatchCard.ZIndex = 104
-HatchCard.Parent = PESP
-corner(HatchCard, 8)
-stroke(HatchCard, C.border, 1, 0)
-pad(HatchCard, 6, 6, 6, 6)
-local HatchLayout = Instance.new("UIListLayout")
-HatchLayout.FillDirection = Enum.FillDirection.Vertical
-HatchLayout.SortOrder = Enum.SortOrder.LayoutOrder
-HatchLayout.Padding = UDim.new(0, 6)
-HatchLayout.Parent = HatchCard
-
-local HatchPathBox = Instance.new("TextBox")
-HatchPathBox.Size = UDim2.new(1, 0, 0, 28)
-HatchPathBox.BackgroundColor3 = C.card
-HatchPathBox.BorderSizePixel = 0
-HatchPathBox.PlaceholderText = "Hatch remote path, e.g. GameEvents.HatchEgg"
-HatchPathBox.PlaceholderColor3 = C.textFaint
-HatchPathBox.Text = automationSettings.hatchRemotePath
-HatchPathBox.TextColor3 = C.text
-HatchPathBox.TextSize = 10
-HatchPathBox.Font = Enum.Font.Code
-HatchPathBox.TextXAlignment = Enum.TextXAlignment.Left
-HatchPathBox.ClearTextOnFocus = false
-HatchPathBox.ZIndex = 105
-HatchPathBox.Parent = HatchCard
-corner(HatchPathBox, 7)
-stroke(HatchPathBox, C.border, 1, 0)
-pad(HatchPathBox, 8, 8, 0, 0)
-HatchPathBox:GetPropertyChangedSignal("Text"):Connect(function()
-    automationSettings.hatchRemotePath = HatchPathBox.Text
-end)
-
-local HatchRow1 = Instance.new("Frame")
-HatchRow1.Size = UDim2.new(1, 0, 0, 28)
-HatchRow1.BackgroundTransparency = 1
-HatchRow1.ZIndex = 105
-HatchRow1.Parent = HatchCard
-local HatchRow1Layout = Instance.new("UIListLayout")
-HatchRow1Layout.FillDirection = Enum.FillDirection.Horizontal
-HatchRow1Layout.SortOrder = Enum.SortOrder.LayoutOrder
-HatchRow1Layout.Padding = UDim.new(0, 6)
-HatchRow1Layout.Parent = HatchRow1
-local HatchDetectBtn = smallBtn(HatchRow1, "Auto Detect", 92)
-local HatchDumpBtn = smallBtn(HatchRow1, "Dump Cmd", 82)
-local HatchArgBtn = smallBtn(HatchRow1, "Arg: UUID", 90)
-local HatchModeBtn = smallBtn(HatchRow1, "Nearest", 78)
-
-local HatchRow2 = Instance.new("Frame")
-HatchRow2.Size = UDim2.new(1, 0, 0, 28)
-HatchRow2.BackgroundTransparency = 1
-HatchRow2.ZIndex = 105
-HatchRow2.Parent = HatchCard
-local HatchRow2Layout = Instance.new("UIListLayout")
-HatchRow2Layout.FillDirection = Enum.FillDirection.Horizontal
-HatchRow2Layout.SortOrder = Enum.SortOrder.LayoutOrder
-HatchRow2Layout.Padding = UDim.new(0, 6)
-HatchRow2Layout.Parent = HatchRow2
-local HatchOnceBtn = smallBtn(HatchRow2, "Hatch Once", 92, C.purple)
-local HatchAutoBtn = smallBtn(HatchRow2, "Auto: OFF", 88, C.surface)
-local HatchDelayBtn = smallBtn(HatchRow2, "Delay: 2.5", 88)
-local HatchTargetBtn = smallBtn(HatchRow2, "Target: Leg", 92)
-
-local HatchInfo = Instance.new("TextLabel")
-HatchInfo.Size = UDim2.new(1, 0, 0, 42)
-HatchInfo.BackgroundColor3 = C.card
-HatchInfo.BorderSizePixel = 0
-HatchInfo.Text = "Auto hatch uses selected remote path. Use Dump Cmd if auto-detect fails."
-HatchInfo.TextColor3 = C.textDim
-HatchInfo.TextSize = 9
-HatchInfo.Font = Enum.Font.Gotham
-HatchInfo.TextWrapped = true
-HatchInfo.ZIndex = 105
-HatchInfo.Parent = HatchCard
-corner(HatchInfo, 7)
-stroke(HatchInfo, C.border, 1, 0)
-
-local function runHatchOnce()
-    local target = pickHatchTarget()
-    if not target then
-        setStatus("No hatch target found", C.yellow)
-        return false
-    end
-    local ok, msg = callHatchRemote(target)
-    setStatus(ok and ("Hatch fired: " .. target.eggName) or ("Hatch failed: " .. msg), ok and C.purple or C.red)
-    pushLog(ok and "HATCH" or "ERR", (ok and "Hatch " or "Hatch failed ") .. target.eggName .. " / " .. target.petName .. " | " .. msg, ok and C.purple or C.red)
-    return ok
-end
-
-HatchDetectBtn.MouseButton1Click:Connect(function()
-    local path = autoDetectHatchRemotePath()
-    if path ~= "" then
-        HatchPathBox.Text = path
-        automationSettings.hatchRemotePath = path
-        setStatus("Hatch remote detected: " .. path, C.purple)
-    else
-        setStatus("No hatch remote found; use Dump Cmd", C.yellow)
-    end
-end)
-HatchDumpBtn.MouseButton1Click:Connect(function()
-    local cmd = [[-- Dump remotes hatch/egg
-for _, v in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-        local n = v.Name:lower()
-        if n:find("hatch") or n:find("egg") or n:find("pet") then
-            print(v.ClassName, v:GetFullName())
-        end
-    end
-end]]
-    pcall(function() setclipboard(cmd) end)
-    pushLog("HATCH", "Dump command copied to clipboard", C.purple)
-    setStatus("Dump command copied", C.purple)
-end)
-HatchArgBtn.MouseButton1Click:Connect(function()
-    local vals = {"Object UUID", "Egg Name", "Pet Name", "Instance"}
-    local idx = 1
-    for i, v in ipairs(vals) do if automationSettings.hatchArgMode == v then idx = i break end end
-    automationSettings.hatchArgMode = vals[(idx % #vals) + 1]
-    HatchArgBtn.Text = "Arg: " .. (automationSettings.hatchArgMode == "Object UUID" and "UUID" or automationSettings.hatchArgMode)
-end)
-HatchModeBtn.MouseButton1Click:Connect(function()
-    automationSettings.hatchMode = automationSettings.hatchMode == "Nearest Egg" and "Target Rarity" or "Nearest Egg"
-    HatchModeBtn.Text = automationSettings.hatchMode == "Nearest Egg" and "Nearest" or "Target"
-end)
-HatchDelayBtn.MouseButton1Click:Connect(function()
-    local vals = {1.5, 2.5, 4, 6}
-    local idx = 1
-    for i, v in ipairs(vals) do if automationSettings.hatchDelay == v then idx = i break end end
-    automationSettings.hatchDelay = vals[(idx % #vals) + 1]
-    HatchDelayBtn.Text = "Delay: " .. tostring(automationSettings.hatchDelay)
-end)
-HatchTargetBtn.MouseButton1Click:Connect(function()
-    local vals = {"Rare", "Epic", "Legendary", "All"}
-    local idx = 1
-    for i, v in ipairs(vals) do if automationSettings.hatchTargetRarity == v then idx = i break end end
-    automationSettings.hatchTargetRarity = vals[(idx % #vals) + 1]
-    HatchTargetBtn.Text = "Target: " .. automationSettings.hatchTargetRarity
-end)
-HatchOnceBtn.MouseButton1Click:Connect(runHatchOnce)
-HatchAutoBtn.MouseButton1Click:Connect(function()
-    automationSettings.autoHatchEnabled = not automationSettings.autoHatchEnabled
-    HatchAutoBtn.Text = automationSettings.autoHatchEnabled and "Auto: ON" or "Auto: OFF"
-    HatchAutoBtn.BackgroundColor3 = automationSettings.autoHatchEnabled and C.purple or C.surface
-    if automationSettings.autoHatchEnabled and not autoHatchThread then
-        autoHatchThread = task.spawn(function()
-            while automationSettings.autoHatchEnabled do
-                pcall(runHatchOnce)
-                task.wait(automationSettings.hatchDelay)
-            end
-            autoHatchThread = nil
-        end)
-    end
-end)
+local HatchDisabled = Instance.new("TextLabel")
+HatchDisabled.Size = UDim2.new(1, 0, 0, 44)
+HatchDisabled.BackgroundColor3 = C.surface
+HatchDisabled.BorderSizePixel = 0
+HatchDisabled.Text = "Temporarily disabled for startup hotfix — send console error if Pet Detector still fails."
+HatchDisabled.TextColor3 = C.textDim
+HatchDisabled.TextSize = 9
+HatchDisabled.Font = Enum.Font.Gotham
+HatchDisabled.TextWrapped = true
+HatchDisabled.ZIndex = 104
+HatchDisabled.Parent = PESP
+corner(HatchDisabled, 8)
+stroke(HatchDisabled, C.border, 1, 0)
 
 -- ============================================================
 -- PANEL: COMING SOON
@@ -2612,7 +2468,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.2 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.2.1 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.2 initialized")
+print("[LowHub] v4.2.1 initialized")
