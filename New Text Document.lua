@@ -1,4 +1,4 @@
--- LOW HUB v4.1.13 - Grow a Garden
+-- LOW HUB v4.1.14 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -531,47 +531,53 @@ local function updateAllEsp()
     local cam = workspace.CurrentCamera
     local camPos = cam.CFrame.Position
     for id, object in pairs(activeEggs) do
-        if not object or not object:IsDescendantOf(workspace) then
-            removeEspById(id); continue
-        end
         local e = espCache[id]
-        if not e then continue end
-        local worldPos = object:GetPivot().Position
-        local pos, onScreen = cam:WorldToViewportPoint(worldPos)
-        if not onScreen then
-            for _, d in ipairs(e) do d.Visible = false end
-            continue
+        local shouldDraw = true
+        local worldPos, pos, dist
+        if not object or not object:IsDescendantOf(workspace) then
+            removeEspById(id)
+            shouldDraw = false
+        elseif not e then
+            shouldDraw = false
+        else
+            worldPos = object:GetPivot().Position
+            pos, shouldDraw = cam:WorldToViewportPoint(worldPos)
         end
-        local dist = math.floor((camPos - worldPos).Magnitude)
-        if espSettings.maxDistance > 0 and dist > espSettings.maxDistance then
-            for _, d in ipairs(e) do d.Visible = false end
-            continue
+        if e and shouldDraw then
+            dist = math.floor((camPos - worldPos).Magnitude)
+            if espSettings.maxDistance > 0 and dist > espSettings.maxDistance then
+                shouldDraw = false
+            end
         end
-        local eggName = object:GetAttribute("EggName")
-        local petName = eggPets and eggPets[id]
-        local color = getEspColor(eggName, petName)
-        local box  = math.clamp(50 - dist * 0.2, 20, 50) * espSettings.boxScale
+        if e and not shouldDraw then
+            for _, d in ipairs(e) do d.Visible = false end
+        elseif e then
+            local eggName = object:GetAttribute("EggName")
+            local petName = eggPets and eggPets[id]
+            local color = getEspColor(eggName, petName)
+            local box  = math.clamp(50 - dist * 0.2, 20, 50) * espSettings.boxScale
 
-        e[4].Color    = color
-        e[4].Size     = Vector2.new(box, box)
-        e[4].Position = Vector2.new(pos.X - box/2, pos.Y - box/2)
-        e[4].Visible  = true
+            e[4].Color    = color
+            e[4].Size     = Vector2.new(box, box)
+            e[4].Position = Vector2.new(pos.X - box/2, pos.Y - box/2)
+            e[4].Visible  = true
 
-        e[1].Text     = tostring(eggName or "?")
-        e[1].Position = Vector2.new(pos.X, pos.Y - box/2 - 30)
-        e[1].Visible  = espSettings.showEggName
+            e[1].Text     = tostring(eggName or "?")
+            e[1].Position = Vector2.new(pos.X, pos.Y - box/2 - 30)
+            e[1].Visible  = espSettings.showEggName
 
-        e[2].Text     = tostring(petName or "?")
-        e[2].Color    = color
-        e[2].Position = Vector2.new(pos.X, pos.Y - box/2 - 16)
-        e[2].Visible  = espSettings.showPetName
+            e[2].Text     = tostring(petName or "?")
+            e[2].Color    = color
+            e[2].Position = Vector2.new(pos.X, pos.Y - box/2 - 16)
+            e[2].Visible  = espSettings.showPetName
 
-        local infoParts = {}
-        if espSettings.showWeight then table.insert(infoParts, buildWeightText(id, eggName, petName)) end
-        if espSettings.showDistance then table.insert(infoParts, string.format("[%dm]", dist)) end
-        e[3].Text     = table.concat(infoParts, "  ")
-        e[3].Position = Vector2.new(pos.X, pos.Y + box/2 + 4)
-        e[3].Visible  = (#infoParts > 0)
+            local infoParts = {}
+            if espSettings.showWeight then table.insert(infoParts, buildWeightText(id, eggName, petName)) end
+            if espSettings.showDistance then table.insert(infoParts, string.format("[%dm]", dist)) end
+            e[3].Text     = table.concat(infoParts, "  ")
+            e[3].Position = Vector2.new(pos.X, pos.Y + box/2 + 4)
+            e[3].Visible  = (#infoParts > 0)
+        end
     end
 end
 
@@ -749,7 +755,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.13"
+VerLbl.Text = "v4.1.14"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1653,7 +1659,7 @@ local function sellInventoryOnce()
 end
 
 SeedPickBtn.MouseButton1Click:Connect(function()
-    selectedSeedIndex += 1
+    selectedSeedIndex = selectedSeedIndex + 1
     if selectedSeedIndex > #seedOptions then selectedSeedIndex = 1 end
     SeedPickBtn.Text = "Seed: " .. seedOptions[selectedSeedIndex]
     FarmStatusLbl.Text = "Seed: " .. seedOptions[selectedSeedIndex] .. " | Ready"
@@ -2191,7 +2197,7 @@ addEsp = function(object)
     _origAddEsp(object)
     local id = object:GetAttribute("OBJECT_UUID")
     if id and espCache[id] then
-        totalSeen += 1
+        totalSeen = totalSeen + 1
         TotalSeenLbl.Text = tostring(totalSeen)
     end
 end
@@ -2364,7 +2370,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.13"
+    FallbackBtn.Text = "LowHub v4.1.14"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2426,7 +2432,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.13 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.14 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.13 initialized")
+print("[LowHub] v4.1.14 initialized")
