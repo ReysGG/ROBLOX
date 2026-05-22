@@ -102,13 +102,9 @@ local function getGroundedCFrameNear(targetCFrame, distanceBack)
 
     local excludeList = {}
     local character = Player.Character
-    if character then
-        table.insert(excludeList, character)
-    end
+    if character then table.insert(excludeList, character) end
     local npc = getHoneySeedNPC()
-    if npc then
-        table.insert(excludeList, npc)
-    end
+    if npc then table.insert(excludeList, npc) end
     raycastParams.FilterDescendantsInstances = excludeList
 
     local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
@@ -162,23 +158,53 @@ end
 local function firePlayerTeleportTriggered()
     local ok, err = pcall(function()
         local gameEvents = ReplicatedStorage:WaitForChild("GameEvents", 5)
-        if not gameEvents then
-            error("GameEvents not found")
-        end
+        if not gameEvents then error("GameEvents not found") end
 
         local remote = gameEvents:WaitForChild("PlayerTeleportTriggered", 5)
-        if not remote then
-            error("PlayerTeleportTriggered not found")
-        end
+        if not remote then error("PlayerTeleportTriggered not found") end
 
         remote:FireServer("Seed Shop")
     end)
 
-    if ok then
-        return true, "FireServer PlayerTeleportTriggered('Seed Shop') sent"
-    else
+    if not ok then
         return false, "FireServer failed: " .. tostring(err)
     end
+
+    -- Tunggu server proses teleport
+    log("Remote fired, waiting 2s for server teleport...")
+    task.wait(2)
+
+    local _, _, root = getCharacter()
+    if not root then
+        return false, "No HumanoidRootPart after wait"
+    end
+
+    local npc, npcErr = getHoneySeedNPC()
+    if not npc then
+        return false, "NPC not found: " .. tostring(npcErr)
+    end
+
+    local npcCFrame = getInstanceCFrame(npc)
+    if not npcCFrame then
+        return false, "Could not get NPC CFrame"
+    end
+
+    local distToNPC = (root.Position - npcCFrame.Position).Magnitude
+    log("Distance to NPC after remote: " .. tostring(math.floor(distToNPC)))
+
+    -- Kalau masih jauh (>30 studs), fallback PivotTo manual
+    if distToNPC > 30 then
+        log("Still far from NPC, applying PivotTo fallback...")
+        local character = Player.Character
+        if character then
+            local finalCFrame = getGroundedCFrameNear(npcCFrame, 6)
+            pcall(function() character:PivotTo(finalCFrame) end)
+            task.wait(0.25)
+        end
+        return true, "Remote fired + PivotTo fallback. Pos: " .. shortPos(root.Position)
+    end
+
+    return true, "Remote fired, server teleported. Pos: " .. shortPos(root.Position)
 end
 
 local function openHoneySeedShopUI()
