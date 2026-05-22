@@ -1,4 +1,4 @@
--- LOW HUB v4.1.22 - Grow a Garden
+-- LOW HUB v4.1.23 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.22 boot"
+BootBtn.Text = "LowHub v4.1.23 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.22 start")
+bootStatus("LowHub v4.1.23 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.22"
+VerLbl.Text = "v4.1.23"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1757,6 +1757,7 @@ function teleportToPlantPosition()
 end
 
 function plantSelectedSeedOnce()
+    if not autoFarmEnabled then return false, "stopped" end
     local seedName = seedOptions[selectedSeedIndex]
     farmSetPhase("check seed", seedName, C.yellow)
     local tool = findSeedTool(seedName)
@@ -1764,13 +1765,16 @@ function plantSelectedSeedOnce()
         farmSetPhase("buy seed", seedName, C.yellow)
         buySelectedSeedOnce()
         task.wait(1)
+        if not autoFarmEnabled then return false, "stopped" end
         tool = findSeedTool(seedName)
         if not tool then return false, "seed not in backpack" end
     end
     local equipped, equipMsg = equipSeedTool(seedName)
+    if not autoFarmEnabled then return false, "stopped" end
     if not equipped then return false, equipMsg end
     farmSetPhase("teleport garden", seedName, C.yellow)
     local tpOk, tpMsg = teleportToPlantPosition()
+    if not autoFarmEnabled then return false, "stopped" end
     if not tpOk then return false, tpMsg end
     local pos, posSource = getPlantPosition()
     local remote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("Plant_RE")
@@ -1782,15 +1786,26 @@ function plantSelectedSeedOnce()
     return ok, msg
 end
 
+function isOwnCharacterOrTool(obj)
+    local ch = Player.Character
+    local backpack = Player:FindFirstChild("Backpack")
+    if ch and (obj == ch or obj:IsDescendantOf(ch)) then return true end
+    if backpack and (obj == backpack or obj:IsDescendantOf(backpack)) then return true end
+    if obj:IsA("Tool") or obj:FindFirstAncestorOfClass("Tool") then return true end
+    return false
+end
+
 function findHarvestTarget(seedName)
     local _, _, root = getCharacter()
     if not root then return nil end
     local needle = seedName:lower()
-    local best, bestDist = nil, 80
+    local best, bestDist = nil, 120
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
+        if (obj:IsA("Model") or obj:IsA("BasePart")) and not isOwnCharacterOrTool(obj) then
             local n = obj.Name:lower()
-            if n:find(needle, 1, true) or n:find("fruit", 1, true) or n:find("crop", 1, true) or n:find("plant", 1, true) then
+            local farmParent = obj:FindFirstAncestor("Farm") or obj:FindFirstAncestor("Plants") or obj:FindFirstAncestor("Fruits")
+            local harvestName = n:find(needle, 1, true) or n:find("fruit", 1, true) or n:find("crop", 1, true) or n:find("plant", 1, true)
+            if farmParent and harvestName and not n:find("seed", 1, true) and not n:find("can_plant", 1, true) then
                 local cf = getInstanceCFrame(obj)
                 if cf then
                     local dist = (root.Position - cf.Position).Magnitude
@@ -1806,6 +1821,7 @@ function findHarvestTarget(seedName)
 end
 
 function harvestSelectedSeedOnce()
+    if not autoFarmEnabled then return false, "stopped" end
     local seedName = seedOptions[selectedSeedIndex]
     local target = findHarvestTarget(seedName)
     if not target then return false, "harvest target not found" end
@@ -1815,6 +1831,7 @@ function harvestSelectedSeedOnce()
         if ch and root and cf then ch:PivotTo(cf + Vector3.new(0, 2, 0)) end
     end)
     task.wait(0.3)
+    if not autoFarmEnabled then return false, "stopped" end
     local okAny = false
     for _, d in ipairs(target:GetDescendants()) do
         if d:IsA("ProximityPrompt") and type(fireproximityprompt) == "function" then
@@ -1825,9 +1842,13 @@ function harvestSelectedSeedOnce()
     end
     local remote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("HarvestRemote")
     if remote then
-        okAny = pcall(function() remote:FireServer(target) end) or okAny
+        if remote:IsA("RemoteFunction") then
+            okAny = pcall(function() remote:InvokeServer(target) end) or okAny
+        else
+            okAny = pcall(function() remote:FireServer(target) end) or okAny
+        end
     end
-    return okAny, okAny and "harvest attempted" or "harvest failed"
+    return okAny, okAny and ("harvest attempted: " .. target.Name) or "harvest failed"
 end
 
 function autoFarmStep()
@@ -2509,7 +2530,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.22"
+    FallbackBtn.Text = "LowHub v4.1.23"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2576,7 +2597,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.22 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.23 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.22 initialized")
+print("[LowHub] v4.1.23 initialized")
