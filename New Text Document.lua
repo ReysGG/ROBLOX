@@ -1,4 +1,4 @@
--- LOW HUB v4.1.9 — Grow a Garden
+-- LOW HUB v4.1.10 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.9"
+VerLbl.Text = "v4.1.10"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1353,6 +1353,28 @@ pad(PFARM, 2, 4, 4, 8)
 
 sectionLbl(PFARM, "FARM")
 
+local FarmStatusCard = Instance.new("Frame")
+FarmStatusCard.Size = UDim2.new(1, 0, 0, 46)
+FarmStatusCard.BackgroundColor3 = C.surface
+FarmStatusCard.BorderSizePixel = 0
+FarmStatusCard.ZIndex = 104
+FarmStatusCard.Parent = PFARM
+corner(FarmStatusCard, 8)
+stroke(FarmStatusCard, C.border, 1, 0)
+
+local FarmStatusLbl = Instance.new("TextLabel")
+FarmStatusLbl.Size = UDim2.new(1, 0, 1, 0)
+FarmStatusLbl.BackgroundTransparency = 1
+FarmStatusLbl.Text = "Seed: Carrot | Ready"
+FarmStatusLbl.TextColor3 = C.text
+FarmStatusLbl.TextSize = 10
+FarmStatusLbl.Font = Enum.Font.Code
+FarmStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
+FarmStatusLbl.TextWrapped = true
+FarmStatusLbl.ZIndex = 105
+FarmStatusLbl.Parent = FarmStatusCard
+pad(FarmStatusLbl, 10, 10, 4, 4)
+
 local seedOptions = {
     "Carrot",
     "Strawberry",
@@ -1380,6 +1402,18 @@ local autoBuyThread = nil
 local autoSellEnabled = false
 local autoSellThread = nil
 
+local QuickRow = Instance.new("Frame")
+QuickRow.Size = UDim2.new(1, 0, 0, 70)
+QuickRow.BackgroundTransparency = 1
+QuickRow.ZIndex = 104
+QuickRow.Parent = PFARM
+
+local QuickGrid = Instance.new("UIGridLayout")
+QuickGrid.CellSize = UDim2.new(0.32, 0, 0, 30)
+QuickGrid.CellPadding = UDim2.new(0.02, 0, 0, 6)
+QuickGrid.SortOrder = Enum.SortOrder.LayoutOrder
+QuickGrid.Parent = QuickRow
+
 local SeedPickBtn = actionBtn(PFARM, "Seed: Carrot", C.surface, 32)
 local BuySeedBtn = actionBtn(PFARM, "Buy Selected Seed", C.greenDark, 32)
 stroke(BuySeedBtn, C.greenMid, 1, 0.2)
@@ -1387,6 +1421,24 @@ local AutoBuyBtn = actionBtn(PFARM, "Auto Buy: OFF", C.surface, 32)
 local SellInvBtn = actionBtn(PFARM, "Sell Inventory", C.greenDark, 32)
 stroke(SellInvBtn, C.greenMid, 1, 0.2)
 local AutoSellBtn = actionBtn(PFARM, "Auto Sell: OFF", C.surface, 32)
+
+local function setSelectedSeed(seedName)
+    for i, name in ipairs(seedOptions) do
+        if name == seedName then
+            selectedSeedIndex = i
+            SeedPickBtn.Text = "Seed: " .. name
+            FarmStatusLbl.Text = "Seed: " .. name .. " | Ready"
+            return
+        end
+    end
+end
+
+for _, quickSeed in ipairs({ "Beanstalk", "Dragon Fruit", "Mango", "Grape", "Pepper", "Cacao" }) do
+    local btn = actionBtn(QuickRow, quickSeed, C.surface, 30)
+    btn.MouseButton1Click:Connect(function()
+        setSelectedSeed(quickSeed)
+    end)
+end
 
 sectionLbl(PBL, "REMOTE FIRE BUILDER")
 
@@ -1534,10 +1586,12 @@ local function buySelectedSeedOnce()
         if type(firesignal) ~= "function" then error("firesignal unavailable") end
         firesignal(buy.Activated)
     end)
-    ResultLbl.Text = ok and ("Buy " .. seedName .. " clicked") or ("Buy " .. seedName .. " failed: " .. tostring(msg))
+    local resultText = ok and ("Buy " .. seedName .. " clicked") or ("Buy " .. seedName .. " failed: " .. tostring(msg))
+    FarmStatusLbl.Text = "Seed: " .. seedName .. " | " .. resultText
+    ResultLbl.Text = resultText
     ResultLbl.TextColor3 = ok and C.green or C.red
-    setStatus(ResultLbl.Text, ok and C.green or C.red)
-    pushLog(ok and "FARM" or "ERR", ResultLbl.Text, ok and C.green or C.red)
+    setStatus(resultText, ok and C.green or C.red)
+    pushLog(ok and "FARM" or "ERR", resultText, ok and C.green or C.red)
     return ok
 end
 
@@ -1553,9 +1607,11 @@ local function sellInventoryOnce()
     end)
     task.wait(0.6)
     local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
-    ResultLbl.Text = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
+    local resultText = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
+    FarmStatusLbl.Text = "Sell | " .. resultText
+    ResultLbl.Text = resultText
     ResultLbl.TextColor3 = ok and C.green or C.red
-    setStatus(ResultLbl.Text, ok and C.green or C.red)
+    setStatus(resultText, ok and C.green or C.red)
     pushLog(ok and "FARM" or "ERR", "Sell_Inventory → " .. msg, ok and C.green or C.red)
     return ok
 end
@@ -1564,6 +1620,7 @@ SeedPickBtn.MouseButton1Click:Connect(function()
     selectedSeedIndex += 1
     if selectedSeedIndex > #seedOptions then selectedSeedIndex = 1 end
     SeedPickBtn.Text = "Seed: " .. seedOptions[selectedSeedIndex]
+    FarmStatusLbl.Text = "Seed: " .. seedOptions[selectedSeedIndex] .. " | Ready"
 end)
 
 BuySeedBtn.MouseButton1Click:Connect(function()
@@ -2309,7 +2366,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.9 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.10 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.9 initialized")
+print("[LowHub] v4.1.10 initialized")
