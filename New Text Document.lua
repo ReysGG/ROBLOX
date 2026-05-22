@@ -1,4 +1,4 @@
--- LOW HUB v4.1.3 — Grow a Garden
+-- LOW HUB v4.1.4 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.3"
+VerLbl.Text = "v4.1.4"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1472,20 +1472,16 @@ stroke(SellInvBtn, C.greenMid, 1, 0.2)
 local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
 
 local function sellInventoryOnce()
-    setStatus("Moving to Sell Shop...", C.yellow)
-    local moved = false
+    setStatus("Moving to Sell Stands...", C.yellow)
     pcall(function()
-        local ok = fireRemote("GameEvents.PlayerTeleportTriggered", "Sell Shop")
-        moved = ok == true
+        local ch, _, root = getCharacter()
+        if ch and root then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            ch:PivotTo(CFrame.new(40.4, 3.2, -3.2))
+        end
     end)
-    task.wait(1.2)
-    if not moved then
-        pcall(function()
-            local ok = teleportToPos(Vector3.new(40.4, 0.8, -3.2))
-            moved = ok == true
-        end)
-        task.wait(0.8)
-    end
+    task.wait(0.6)
     local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
     ResultLbl.Text = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
     ResultLbl.TextColor3 = ok and C.green or C.red
@@ -2218,7 +2214,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.3 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.4 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.3 initialized")
+print("[LowHub] v4.1.4 initialized")
