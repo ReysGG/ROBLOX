@@ -1,4 +1,4 @@
--- LOW HUB v4.1.23 - Grow a Garden
+-- LOW HUB v4.1.24 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.23 boot"
+BootBtn.Text = "LowHub v4.1.24 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.23 start")
+bootStatus("LowHub v4.1.24 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.23"
+VerLbl.Text = "v4.1.24"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1637,7 +1637,7 @@ end)
 sectionLbl(PBL, "FARM TOOLS")
 local FarmDumpBtn = actionBtn(PBL, "Dump Farm Remotes", C.surface, 32)
 FarmDumpBtn.MouseButton1Click:Connect(function()
-    local cmd = '-- Dump auto farm data\nlocal Players=game:GetService("Players")\nlocal RS=game:GetService("ReplicatedStorage")\nlocal LP=Players.LocalPlayer\nprint("== TOOLS ==")\nfor _,c in ipairs({LP.Backpack, LP.Character}) do\n    if c then for _,v in ipairs(c:GetChildren()) do if v:IsA("Tool") then print(v:GetFullName()) end end end\nend\nprint("== REMOTES ==")\nfor _,v in ipairs(RS:GetDescendants()) do\n    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then\n        local n=v.Name:lower()\n        if n:find("sell") or n:find("garden") or n:find("seed") or n:find("plant") or n:find("harvest") or n:find("crop") or n:find("buy") or n:find("shop") or n:find("inventory") or n:find("teleport") then print(v.ClassName, v:GetFullName()) end\n    end\nend\nprint("== NEAR FARM OBJECTS ==")\nlocal root=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")\nif root then\n    for _,v in ipairs(workspace:GetDescendants()) do\n        local n=v.Name:lower()\n        if n:find("farm") or n:find("garden") or n:find("plot") or n:find("plant") or n:find("crop") or n:find("fruit") then\n            local p=v:IsA("BasePart") and v.Position or (v:IsA("Model") and v:GetPivot().Position)\n            if p and (root.Position-p).Magnitude<120 then print(v.ClassName, v:GetFullName(), "dist", math.floor((root.Position-p).Magnitude)) end\n        end\n    end\nend'
+    local cmd = '-- Dump auto farm data after Farm teleport\nlocal Players=game:GetService("Players")\nlocal RS=game:GetService("ReplicatedStorage")\nlocal LP=Players.LocalPlayer\nlocal ge=RS:FindFirstChild("GameEvents")\nlocal tp=ge and ge:FindFirstChild("PlayerTeleportTriggered")\nif tp then pcall(function() tp:FireServer("Farm") end) task.wait(1.5) end\nlocal root=LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")\nprint("== LOWHUB GARDEN DUMP ==")\nprint("Player", LP.Name)\nif root then print("RootPos", root.Position.X, root.Position.Y, root.Position.Z) end\nprint("== TOOLS ==")\nfor _,c in ipairs({LP.Backpack, LP.Character}) do\n    if c then for _,v in ipairs(c:GetChildren()) do if v:IsA("Tool") then print(v:GetFullName(), "Seed", tostring(v:GetAttribute("Seed")), "Qty", tostring(v:GetAttribute("Quantity"))) end end end\nend\nprint("== REMOTES ==")\nfor _,v in ipairs(RS:GetDescendants()) do\n    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then\n        local n=v.Name:lower()\n        if n:find("sell") or n:find("garden") or n:find("seed") or n:find("plant") or n:find("harvest") or n:find("crop") or n:find("buy") or n:find("shop") or n:find("inventory") or n:find("teleport") then print(v.ClassName, v:GetFullName()) end\n    end\nend\nprint("== CAN_PLANT PARTS ==")\nif root then\n    for _,v in ipairs(workspace:GetDescendants()) do\n        local n=v.Name:lower()\n        if v:IsA("BasePart") and (n:find("can_plant") or n:find("plant_location")) then\n            local p=v.Position\n            if (root.Position-p).Magnitude<180 then print(v:GetFullName(), "dist", math.floor((root.Position-p).Magnitude), "pos", math.floor(p.X), math.floor(p.Y), math.floor(p.Z), "Side", tostring(v:GetAttribute("Side"))) end\n        end\n    end\nend\nprint("== NEAR CROP OBJECTS ==")\nif root then\n    for _,v in ipairs(workspace:GetDescendants()) do\n        local n=v.Name:lower()\n        if not v:IsA("Tool") and (n:find("carrot") or n:find("fruit") or n:find("crop") or n:find("plant")) then\n            local ok,p=pcall(function() return v:IsA("BasePart") and v.Position or (v:IsA("Model") and v:GetPivot().Position) end)\n            if ok and p and (root.Position-p).Magnitude<120 then print(v.ClassName, v:GetFullName(), "dist", math.floor((root.Position-p).Magnitude)) end\n        end\n    end\nend'
     if type(setclipboard) == "function" then pcall(function() setclipboard(cmd) end) end
     print(cmd)
     ResultLbl.Text = "Auto farm dump copied/printed"
@@ -1739,6 +1739,23 @@ end
 function getPlantPosition()
     local _, _, root = getCharacter()
     if not root then return Vector3.new(0, 0, 0), "no root" end
+    local best, bestDist = nil, 160
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local n = obj.Name:lower()
+            if n:find("can_plant", 1, true) then
+                local dist = (root.Position - obj.Position).Magnitude
+                if dist < bestDist then
+                    best = obj
+                    bestDist = dist
+                end
+            end
+        end
+    end
+    if best then
+        local p = best.Position
+        return Vector3.new(p.X, 0.1355266571044922, p.Z), "nearest Can_Plant"
+    end
     local p = root.Position + (root.CFrame.LookVector * 7)
     return Vector3.new(p.X, 0.1355266571044922, p.Z), "front of player"
 end
@@ -2530,7 +2547,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.23"
+    FallbackBtn.Text = "LowHub v4.1.24"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2597,7 +2614,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.23 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.24 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.23 initialized")
+print("[LowHub] v4.1.24 initialized")
