@@ -1,4 +1,4 @@
--- LOW HUB v4.1.10 — Grow a Garden
+-- LOW HUB v4.1.11 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.10"
+VerLbl.Text = "v4.1.11"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1351,19 +1351,37 @@ PFARMLayout.Padding = UDim.new(0, 8)
 PFARMLayout.Parent = PFARM
 pad(PFARM, 2, 4, 4, 8)
 
-sectionLbl(PFARM, "FARM")
+sectionLbl(PFARM, "FARM CONTROL")
 
-local FarmStatusCard = Instance.new("Frame")
-FarmStatusCard.Size = UDim2.new(1, 0, 0, 46)
-FarmStatusCard.BackgroundColor3 = C.surface
-FarmStatusCard.BorderSizePixel = 0
-FarmStatusCard.ZIndex = 104
-FarmStatusCard.Parent = PFARM
-corner(FarmStatusCard, 8)
-stroke(FarmStatusCard, C.border, 1, 0)
+local function farmCard(parent, h)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, 0, 0, h)
+    card.BackgroundColor3 = C.surface
+    card.BorderSizePixel = 0
+    card.ZIndex = 104
+    card.Parent = parent
+    corner(card, 10)
+    stroke(card, C.border, 1, 0)
+    return card
+end
+
+local FarmStatusCard = farmCard(PFARM, 64)
+
+local FarmTitleLbl = Instance.new("TextLabel")
+FarmTitleLbl.Size = UDim2.new(1, -20, 0, 20)
+FarmTitleLbl.Position = UDim2.new(0, 10, 0, 7)
+FarmTitleLbl.BackgroundTransparency = 1
+FarmTitleLbl.Text = "Auto Farm"
+FarmTitleLbl.TextColor3 = C.green
+FarmTitleLbl.TextSize = 12
+FarmTitleLbl.Font = Enum.Font.GothamBold
+FarmTitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+FarmTitleLbl.ZIndex = 105
+FarmTitleLbl.Parent = FarmStatusCard
 
 local FarmStatusLbl = Instance.new("TextLabel")
-FarmStatusLbl.Size = UDim2.new(1, 0, 1, 0)
+FarmStatusLbl.Size = UDim2.new(1, -20, 0, 28)
+FarmStatusLbl.Position = UDim2.new(0, 10, 0, 30)
 FarmStatusLbl.BackgroundTransparency = 1
 FarmStatusLbl.Text = "Seed: Carrot | Ready"
 FarmStatusLbl.TextColor3 = C.text
@@ -1373,7 +1391,6 @@ FarmStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
 FarmStatusLbl.TextWrapped = true
 FarmStatusLbl.ZIndex = 105
 FarmStatusLbl.Parent = FarmStatusCard
-pad(FarmStatusLbl, 10, 10, 4, 4)
 
 local seedOptions = {
     "Carrot",
@@ -1402,25 +1419,67 @@ local autoBuyThread = nil
 local autoSellEnabled = false
 local autoSellThread = nil
 
+local FarmActionCard = farmCard(PFARM, 112)
+
+local FarmActionTitle = Instance.new("TextLabel")
+FarmActionTitle.Size = UDim2.new(1, -20, 0, 18)
+FarmActionTitle.Position = UDim2.new(0, 10, 0, 7)
+FarmActionTitle.BackgroundTransparency = 1
+FarmActionTitle.Text = "Main Actions"
+FarmActionTitle.TextColor3 = C.textMid
+FarmActionTitle.TextSize = 10
+FarmActionTitle.Font = Enum.Font.GothamBold
+FarmActionTitle.TextXAlignment = Enum.TextXAlignment.Left
+FarmActionTitle.ZIndex = 105
+FarmActionTitle.Parent = FarmActionCard
+
+local FarmActionGrid = Instance.new("Frame")
+FarmActionGrid.Size = UDim2.new(1, -20, 0, 74)
+FarmActionGrid.Position = UDim2.new(0, 10, 0, 30)
+FarmActionGrid.BackgroundTransparency = 1
+FarmActionGrid.ZIndex = 105
+FarmActionGrid.Parent = FarmActionCard
+
+local FarmGridLayout = Instance.new("UIGridLayout")
+FarmGridLayout.CellSize = UDim2.new(0, 126, 0, 32)
+FarmGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
+FarmGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
+FarmGridLayout.Parent = FarmActionGrid
+
+local SeedPickBtn = actionBtn(FarmActionGrid, "Seed: Carrot", C.surface, 32)
+local BuySeedBtn = actionBtn(FarmActionGrid, "Buy Once", C.greenDark, 32)
+stroke(BuySeedBtn, C.greenMid, 1, 0.2)
+local AutoBuyBtn = actionBtn(FarmActionGrid, "Auto Buy: OFF", C.surface, 32)
+local SellInvBtn = actionBtn(FarmActionGrid, "Sell Now", C.greenDark, 32)
+stroke(SellInvBtn, C.greenMid, 1, 0.2)
+local AutoSellBtn = actionBtn(FarmActionGrid, "Auto Sell: OFF", C.surface, 32)
+
+local QuickCard = farmCard(PFARM, 112)
+
+local QuickTitle = Instance.new("TextLabel")
+QuickTitle.Size = UDim2.new(1, -20, 0, 18)
+QuickTitle.Position = UDim2.new(0, 10, 0, 7)
+QuickTitle.BackgroundTransparency = 1
+QuickTitle.Text = "Rare Seed Quick Pick"
+QuickTitle.TextColor3 = C.textMid
+QuickTitle.TextSize = 10
+QuickTitle.Font = Enum.Font.GothamBold
+QuickTitle.TextXAlignment = Enum.TextXAlignment.Left
+QuickTitle.ZIndex = 105
+QuickTitle.Parent = QuickCard
+
 local QuickRow = Instance.new("Frame")
-QuickRow.Size = UDim2.new(1, 0, 0, 70)
+QuickRow.Size = UDim2.new(1, -20, 0, 74)
+QuickRow.Position = UDim2.new(0, 10, 0, 30)
 QuickRow.BackgroundTransparency = 1
-QuickRow.ZIndex = 104
-QuickRow.Parent = PFARM
+QuickRow.ZIndex = 105
+QuickRow.Parent = QuickCard
 
 local QuickGrid = Instance.new("UIGridLayout")
-QuickGrid.CellSize = UDim2.new(0.32, 0, 0, 30)
-QuickGrid.CellPadding = UDim2.new(0.02, 0, 0, 6)
+QuickGrid.CellSize = UDim2.new(0, 82, 0, 30)
+QuickGrid.CellPadding = UDim2.new(0, 7, 0, 8)
 QuickGrid.SortOrder = Enum.SortOrder.LayoutOrder
 QuickGrid.Parent = QuickRow
-
-local SeedPickBtn = actionBtn(PFARM, "Seed: Carrot", C.surface, 32)
-local BuySeedBtn = actionBtn(PFARM, "Buy Selected Seed", C.greenDark, 32)
-stroke(BuySeedBtn, C.greenMid, 1, 0.2)
-local AutoBuyBtn = actionBtn(PFARM, "Auto Buy: OFF", C.surface, 32)
-local SellInvBtn = actionBtn(PFARM, "Sell Inventory", C.greenDark, 32)
-stroke(SellInvBtn, C.greenMid, 1, 0.2)
-local AutoSellBtn = actionBtn(PFARM, "Auto Sell: OFF", C.surface, 32)
 
 local function setSelectedSeed(seedName)
     for i, name in ipairs(seedOptions) do
@@ -1588,8 +1647,6 @@ local function buySelectedSeedOnce()
     end)
     local resultText = ok and ("Buy " .. seedName .. " clicked") or ("Buy " .. seedName .. " failed: " .. tostring(msg))
     FarmStatusLbl.Text = "Seed: " .. seedName .. " | " .. resultText
-    ResultLbl.Text = resultText
-    ResultLbl.TextColor3 = ok and C.green or C.red
     setStatus(resultText, ok and C.green or C.red)
     pushLog(ok and "FARM" or "ERR", resultText, ok and C.green or C.red)
     return ok
@@ -1609,8 +1666,6 @@ local function sellInventoryOnce()
     local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
     local resultText = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
     FarmStatusLbl.Text = "Sell | " .. resultText
-    ResultLbl.Text = resultText
-    ResultLbl.TextColor3 = ok and C.green or C.red
     setStatus(resultText, ok and C.green or C.red)
     pushLog(ok and "FARM" or "ERR", "Sell_Inventory → " .. msg, ok and C.green or C.red)
     return ok
@@ -2366,7 +2421,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.10 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.11 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.10 initialized")
+print("[LowHub] v4.1.11 initialized")
