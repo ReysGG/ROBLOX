@@ -1,4 +1,4 @@
--- LOW HUB v4.1.16 - Grow a Garden
+-- LOW HUB v4.1.17 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -14,6 +14,38 @@ local PlayerGui = Player:WaitForChild("PlayerGui")
 local CoreGui = game:GetService("CoreGui")
 
 local GUI_NAME = "LowHubV4"
+local BOOT_GUI_NAME = GUI_NAME .. "Boot"
+
+local oldBoot = PlayerGui:FindFirstChild(BOOT_GUI_NAME)
+if oldBoot then oldBoot:Destroy() end
+
+local BootGui = Instance.new("ScreenGui")
+BootGui.Name = BOOT_GUI_NAME
+BootGui.ResetOnSpawn = false
+BootGui.DisplayOrder = 2147483647
+BootGui.IgnoreGuiInset = true
+BootGui.Parent = PlayerGui
+
+local BootBtn = Instance.new("TextButton")
+BootBtn.Size = UDim2.new(0, 150, 0, 34)
+BootBtn.Position = UDim2.new(0, 8, 0, 8)
+BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
+BootBtn.BorderSizePixel = 0
+BootBtn.Text = "LowHub v4.1.17 boot"
+BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BootBtn.TextSize = 11
+BootBtn.Font = Enum.Font.GothamBold
+BootBtn.Parent = BootGui
+
+local BootCorner = Instance.new("UICorner")
+BootCorner.CornerRadius = UDim.new(0, 8)
+BootCorner.Parent = BootBtn
+
+local function bootStatus(txt)
+    if BootBtn then BootBtn.Text = tostring(txt) end
+end
+
+bootStatus("LowHub v4.1.17 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -662,6 +694,7 @@ Gui.ResetOnSpawn = false
 Gui.DisplayOrder = 999999
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Gui.Parent = GuiParent
+bootStatus("LowHub main UI made")
 
 local FallbackGui
 if GuiParent ~= PlayerGui then
@@ -755,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.16"
+VerLbl.Text = "v4.1.17"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -2253,6 +2286,7 @@ for _, t in ipairs(TABS) do
 end
 
 setActiveTab("farm")
+bootStatus("LowHub ready")
 
 -- ============================================================
 -- MINIMIZE / CLOSE / DRAG
@@ -2279,7 +2313,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.16"
+    FallbackBtn.Text = "LowHub v4.1.17"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2297,6 +2331,10 @@ MinIcon.MouseButton1Click:Connect(function()
     MinIcon.Visible = false
     Win.Visible = true
 end)
+BootBtn.MouseButton1Click:Connect(function()
+    Win.Visible = true
+    MinIcon.Visible = false
+end)
 if FallbackBtn then
     FallbackBtn.MouseButton1Click:Connect(function()
         Win.Visible = true
@@ -2309,6 +2347,7 @@ CloseBtn.MouseButton1Click:Connect(function()
     if espEnabled then disableEsp() end
     clearAllEspDrawings()
     if FallbackGui then FallbackGui:Destroy() end
+    if BootGui then BootGui:Destroy() end
     Gui:Destroy()
 end)
 
@@ -2341,7 +2380,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.16 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.17 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.16 initialized")
+print("[LowHub] v4.1.17 initialized")
