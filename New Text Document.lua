@@ -88,6 +88,24 @@ local function getInstanceCFrame(inst)
     return nil
 end
 
+local function getGroundedCFrameNear(targetCFrame, distanceBack)
+    distanceBack = distanceBack or 6
+    local backPosition = (targetCFrame * CFrame.new(0, 0, distanceBack)).Position
+    local rayOrigin = backPosition + Vector3.new(0, 50, 0)
+    local rayDirection = Vector3.new(0, -200, 0)
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+    raycastParams.IgnoreWater = false
+    local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+    local groundPosition
+    if result then
+        groundPosition = result.Position + Vector3.new(0, 3, 0)
+    else
+        groundPosition = backPosition + Vector3.new(0, 3, 0)
+    end
+    return CFrame.new(groundPosition, targetCFrame.Position)
+end
+
 local function teleportToHoneySeedNPC()
     local npc, err = getHoneySeedNPC()
     if not npc then return false, err end
@@ -103,7 +121,7 @@ local function teleportToHoneySeedNPC()
     root.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
     root.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
 
-    local finalCFrame = targetCFrame + Vector3.new(0, 4, 0)
+    local finalCFrame = getGroundedCFrameNear(targetCFrame, 6)
     pcall(function() character:PivotTo(finalCFrame) end)
 
     task.wait(0.25)
@@ -139,12 +157,12 @@ Gui.ResetOnSpawn = false
 Gui.IgnoreGuiInset = false
 Gui.DisplayOrder = 999999
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Gui.Parent = PlayerGui  -- FIX 1: langsung ke PlayerGui, skip CoreGui
+Gui.Parent = PlayerGui
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.new(0, 360, 0, 330)         -- FIX 3: dinaikkan dari 305 ke 330
-Main.Position = UDim2.new(0, 30, 0.5, -165)   -- FIX 3: disesuaikan
+Main.Size = UDim2.new(0, 360, 0, 330)
+Main.Position = UDim2.new(0, 30, 0.5, -165)
 Main.BackgroundColor3 = Color3.fromRGB(14, 20, 14)
 Main.BorderSizePixel = 0
 Main.Active = true
@@ -281,7 +299,7 @@ end
 
 local TeleportBtn = makeButton("TeleportHoneySeedNPC", "Teleport to HoneySeedShop NPC", 200, Color3.fromRGB(35, 55, 35))
 local OpenShopBtn = makeButton("OpenHoneySeedShop", "Open Honey Seed Shop UI", 244, Color3.fromRGB(55, 45, 35))
-local PosBtn     = makeButton("PrintPosition", "Print Position", 288, Color3.fromRGB(35, 45, 55))
+local PosBtn      = makeButton("PrintPosition", "Print Position", 288, Color3.fromRGB(35, 45, 55))
 
 local Icon = Instance.new("TextButton")
 Icon.Name = "OpenIcon"
@@ -328,7 +346,6 @@ OpenShopBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- FIX 2: ganti "local , , root" jadi "local _, _, root"
 PosBtn.MouseButton1Click:Connect(function()
     local _, _, root = getCharacter()
     if root then
