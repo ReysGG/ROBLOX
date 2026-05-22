@@ -1453,6 +1453,17 @@ FireBuildBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+local FarmDumpBtn = actionBtn(PBL, "Dump Farm Remotes", C.surface, 32)
+FarmDumpBtn.MouseButton1Click:Connect(function()
+    local cmd = '-- Dump remotes auto farm\nfor _, v in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do\n    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then\n        local n = v.Name:lower()\n        if n:find("sell") or n:find("garden") or n:find("seed") or n:find("plant") or n:find("harvest") or n:find("crop") or n:find("buy") or n:find("shop") or n:find("inventory") then\n            print(v.ClassName, v:GetFullName())\n        end\n    end\nend'
+    if type(setclipboard) == "function" then pcall(function() setclipboard(cmd) end) end
+    print(cmd)
+    ResultLbl.Text = "Farm dump copied/printed"
+    ResultLbl.TextColor3 = C.green
+    setStatus("Farm dump ready", C.green)
+    pushLog("BLD", "Farm dump command copied/printed", C.green)
+end)
+
 -- ============================================================
 -- PANEL: EGG ESP
 -- ============================================================
