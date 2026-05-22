@@ -1,4 +1,4 @@
--- LOW HUB v4.1.11 — Grow a Garden
+-- LOW HUB v4.1.12 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -11,14 +11,27 @@ local RunService        = game:GetService("RunService")
 
 local Player    = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
+local CoreGui = game:GetService("CoreGui")
 
 local GUI_NAME = "LowHubV4"
+
+local function getGuiParent()
+    local ok = pcall(function()
+        local probe = Instance.new("Folder")
+        probe.Name = "LowHubParentProbe"
+        probe.Parent = CoreGui
+        probe:Destroy()
+    end)
+    return ok and CoreGui or PlayerGui
+end
+
+local GuiParent = getGuiParent()
 
 -- cleanup
 local old = PlayerGui:FindFirstChild(GUI_NAME)
 if old then old:Destroy() end
 pcall(function()
-    local c = game:GetService("CoreGui"):FindFirstChild(GUI_NAME)
+    local c = CoreGui:FindFirstChild(GUI_NAME)
     if c then c:Destroy() end
 end)
 
@@ -642,7 +655,16 @@ Gui.Name = GUI_NAME
 Gui.ResetOnSpawn = false
 Gui.DisplayOrder = 999999
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-Gui.Parent = PlayerGui
+Gui.Parent = GuiParent
+
+local FallbackGui
+if GuiParent ~= PlayerGui then
+    FallbackGui = Instance.new("ScreenGui")
+    FallbackGui.Name = GUI_NAME .. "Fallback"
+    FallbackGui.ResetOnSpawn = false
+    FallbackGui.DisplayOrder = 999998
+    FallbackGui.Parent = PlayerGui
+end
 
 local Win = Instance.new("Frame")
 Win.Name = "Win"
@@ -727,7 +749,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.11"
+VerLbl.Text = "v4.1.12"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1419,65 +1441,24 @@ local autoBuyThread = nil
 local autoSellEnabled = false
 local autoSellThread = nil
 
-local FarmActionCard = farmCard(PFARM, 112)
-
-local FarmActionTitle = Instance.new("TextLabel")
-FarmActionTitle.Size = UDim2.new(1, -20, 0, 18)
-FarmActionTitle.Position = UDim2.new(0, 10, 0, 7)
-FarmActionTitle.BackgroundTransparency = 1
-FarmActionTitle.Text = "Main Actions"
-FarmActionTitle.TextColor3 = C.textMid
-FarmActionTitle.TextSize = 10
-FarmActionTitle.Font = Enum.Font.GothamBold
-FarmActionTitle.TextXAlignment = Enum.TextXAlignment.Left
-FarmActionTitle.ZIndex = 105
-FarmActionTitle.Parent = FarmActionCard
-
-local FarmActionGrid = Instance.new("Frame")
-FarmActionGrid.Size = UDim2.new(1, -20, 0, 74)
-FarmActionGrid.Position = UDim2.new(0, 10, 0, 30)
-FarmActionGrid.BackgroundTransparency = 1
-FarmActionGrid.ZIndex = 105
-FarmActionGrid.Parent = FarmActionCard
-
-local FarmGridLayout = Instance.new("UIGridLayout")
-FarmGridLayout.CellSize = UDim2.new(0, 126, 0, 32)
-FarmGridLayout.CellPadding = UDim2.new(0, 8, 0, 8)
-FarmGridLayout.SortOrder = Enum.SortOrder.LayoutOrder
-FarmGridLayout.Parent = FarmActionGrid
-
-local SeedPickBtn = actionBtn(FarmActionGrid, "Seed: Carrot", C.surface, 32)
-local BuySeedBtn = actionBtn(FarmActionGrid, "Buy Once", C.greenDark, 32)
+local SeedPickBtn = actionBtn(PFARM, "Seed: Carrot", C.surface, 32)
+local BuySeedBtn = actionBtn(PFARM, "Buy Once", C.greenDark, 32)
 stroke(BuySeedBtn, C.greenMid, 1, 0.2)
-local AutoBuyBtn = actionBtn(FarmActionGrid, "Auto Buy: OFF", C.surface, 32)
-local SellInvBtn = actionBtn(FarmActionGrid, "Sell Now", C.greenDark, 32)
+local AutoBuyBtn = actionBtn(PFARM, "Auto Buy: OFF", C.surface, 32)
+local SellInvBtn = actionBtn(PFARM, "Sell Now", C.greenDark, 32)
 stroke(SellInvBtn, C.greenMid, 1, 0.2)
-local AutoSellBtn = actionBtn(FarmActionGrid, "Auto Sell: OFF", C.surface, 32)
+local AutoSellBtn = actionBtn(PFARM, "Auto Sell: OFF", C.surface, 32)
 
-local QuickCard = farmCard(PFARM, 112)
-
-local QuickTitle = Instance.new("TextLabel")
-QuickTitle.Size = UDim2.new(1, -20, 0, 18)
-QuickTitle.Position = UDim2.new(0, 10, 0, 7)
-QuickTitle.BackgroundTransparency = 1
-QuickTitle.Text = "Rare Seed Quick Pick"
-QuickTitle.TextColor3 = C.textMid
-QuickTitle.TextSize = 10
-QuickTitle.Font = Enum.Font.GothamBold
-QuickTitle.TextXAlignment = Enum.TextXAlignment.Left
-QuickTitle.ZIndex = 105
-QuickTitle.Parent = QuickCard
-
+sectionLbl(PFARM, "RARE QUICK PICK")
 local QuickRow = Instance.new("Frame")
-QuickRow.Size = UDim2.new(1, -20, 0, 74)
-QuickRow.Position = UDim2.new(0, 10, 0, 30)
+QuickRow.Size = UDim2.new(1, 0, 0, 112)
 QuickRow.BackgroundTransparency = 1
-QuickRow.ZIndex = 105
-QuickRow.Parent = QuickCard
+QuickRow.ZIndex = 104
+QuickRow.Parent = PFARM
 
 local QuickGrid = Instance.new("UIGridLayout")
-QuickGrid.CellSize = UDim2.new(0, 82, 0, 30)
-QuickGrid.CellPadding = UDim2.new(0, 7, 0, 8)
+QuickGrid.CellSize = UDim2.new(0, 86, 0, 30)
+QuickGrid.CellPadding = UDim2.new(0, 6, 0, 7)
 QuickGrid.SortOrder = Enum.SortOrder.LayoutOrder
 QuickGrid.Parent = QuickRow
 
@@ -2376,6 +2357,23 @@ MinIcon.ZIndex = 2000
 MinIcon.Parent = Gui
 corner(MinIcon, 10)
 
+local FallbackBtn
+if FallbackGui then
+    FallbackBtn = Instance.new("TextButton")
+    FallbackBtn.Size = UDim2.new(0, 118, 0, 34)
+    FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
+    FallbackBtn.BackgroundColor3 = C.greenDark
+    FallbackBtn.BorderSizePixel = 0
+    FallbackBtn.Text = "LowHub v4.1.12"
+    FallbackBtn.TextColor3 = C.white
+    FallbackBtn.TextSize = 11
+    FallbackBtn.Font = Enum.Font.GothamBold
+    FallbackBtn.ZIndex = 2001
+    FallbackBtn.Parent = FallbackGui
+    corner(FallbackBtn, 8)
+    stroke(FallbackBtn, C.greenMid, 1, 0)
+end
+
 MinBtn.MouseButton1Click:Connect(function()
     Win.Visible = false
     MinIcon.Visible = true
@@ -2384,11 +2382,18 @@ MinIcon.MouseButton1Click:Connect(function()
     MinIcon.Visible = false
     Win.Visible = true
 end)
+if FallbackBtn then
+    FallbackBtn.MouseButton1Click:Connect(function()
+        Win.Visible = true
+        MinIcon.Visible = false
+    end)
+end
 CloseBtn.MouseButton1Click:Connect(function()
     print = _origPrint
     warn  = _origWarn
     if espEnabled then disableEsp() end
     clearAllEspDrawings()
+    if FallbackGui then FallbackGui:Destroy() end
     Gui:Destroy()
 end)
 
@@ -2421,7 +2426,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.11 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.12 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.11 initialized")
+print("[LowHub] v4.1.12 initialized")
