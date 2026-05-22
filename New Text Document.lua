@@ -1,4 +1,4 @@
--- LOW HUB v4.1.21 - Grow a Garden
+-- LOW HUB v4.1.22 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.21 boot"
+BootBtn.Text = "LowHub v4.1.22 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.21 start")
+bootStatus("LowHub v4.1.22 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.21"
+VerLbl.Text = "v4.1.22"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1737,23 +1737,23 @@ function equipSeedTool(seedName)
 end
 
 function getPlantPosition()
-    return Vector3.new(-15.4, 3.0, 36.8), "manual farm"
+    local _, _, root = getCharacter()
+    if not root then return Vector3.new(0, 0, 0), "no root" end
+    local p = root.Position + (root.CFrame.LookVector * 7)
+    return Vector3.new(p.X, 0.1355266571044922, p.Z), "front of player"
 end
 
 function teleportToPlantPosition()
-    local ch, _, root = getCharacter()
-    if not ch or not root then return false, "character missing" end
+    local _, _, root = getCharacter()
+    if not root then return false, "character missing" end
     local ge = ReplicatedStorage:FindFirstChild("GameEvents")
     local tp = ge and ge:FindFirstChild("PlayerTeleportTriggered")
-    if tp then pcall(function() tp:FireServer("Farm") end) end
-    task.wait(0.5)
-    local pos, source = getPlantPosition()
-    root.AssemblyLinearVelocity = Vector3.zero
-    root.AssemblyAngularVelocity = Vector3.zero
-    ch:PivotTo(CFrame.new(pos))
-    task.wait(0.25)
-    local dist = (root.Position - pos).Magnitude
-    return dist < 12, source .. " dist " .. tostring(math.floor(dist))
+    if not tp then return false, "Farm teleport remote missing" end
+    local start = root.Position
+    pcall(function() tp:FireServer("Farm") end)
+    task.wait(1.2)
+    local moved = (root.Position - start).Magnitude
+    return true, "Farm remote moved " .. tostring(math.floor(moved))
 end
 
 function plantSelectedSeedOnce()
@@ -1772,22 +1772,12 @@ function plantSelectedSeedOnce()
     farmSetPhase("teleport garden", seedName, C.yellow)
     local tpOk, tpMsg = teleportToPlantPosition()
     if not tpOk then return false, tpMsg end
-    local pos = getPlantPosition()
+    local pos, posSource = getPlantPosition()
     local remote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("Plant_RE")
     if not remote then return false, "Plant_RE not found" end
-    farmSetPhase("plant", seedName, C.yellow)
-    local ok = false
-    local msg = "plant failed"
-    ok = pcall(function() remote:FireServer(pos, seedName) end)
-    msg = ok and "Plant_RE pos,name" or msg
-    if not ok then
-        ok = pcall(function() remote:FireServer(seedName, pos) end)
-        msg = ok and "Plant_RE name,pos" or msg
-    end
-    if not ok then
-        ok = pcall(function() remote:FireServer(seedName) end)
-        msg = ok and "Plant_RE name" or msg
-    end
+    farmSetPhase("plant", seedName .. " at " .. posSource, C.yellow)
+    local ok = pcall(function() remote:FireServer(pos, seedName) end)
+    local msg = ok and "Plant_RE vector,name" or "plant failed"
     farmSetPhase(ok and "planted" or "plant failed", msg, ok and C.green or C.red)
     return ok, msg
 end
@@ -2519,7 +2509,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.21"
+    FallbackBtn.Text = "LowHub v4.1.22"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2586,7 +2576,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.21 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.22 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.21 initialized")
+print("[LowHub] v4.1.22 initialized")
