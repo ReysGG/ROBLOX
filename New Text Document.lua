@@ -1,4 +1,4 @@
--- LOW HUB v4.1.8 — Grow a Garden
+-- LOW HUB v4.1.7 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.8"
+VerLbl.Text = "v4.1.7"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -834,7 +834,6 @@ local TABS = {
     { id = "teleport", icon = "⊹",  label = "TP"  },
     { id = "console",  icon = "≡",  label = "LOG" },
     { id = "esp",      icon = "◉",  label = "ESP" },
-    { id = "farm",     icon = "✦",  label = "FARM" },
     { id = "builder",  icon = "◈",  label = "BLD" },
     { id = "soon",     icon = "◌",  label = "···" },
 }
@@ -1343,6 +1342,43 @@ PBLLayout.Padding = UDim.new(0, 8)
 PBLLayout.Parent = PBL
 pad(PBL, 2, 4, 4, 8)
 
+sectionLbl(PBL, "FARMER")
+
+local seedOptions = {
+    "Carrot",
+    "Strawberry",
+    "Blueberry",
+    "Tomato",
+    "Corn",
+    "Daffodil",
+    "Watermelon",
+    "Pumpkin",
+    "Apple",
+    "Bamboo",
+    "Coconut",
+    "Cactus",
+    "Dragon Fruit",
+    "Mango",
+    "Grape",
+    "Mushroom",
+    "Pepper",
+    "Cacao",
+    "Beanstalk",
+}
+local selectedSeedIndex = 1
+local autoBuyEnabled = false
+local autoBuyThread = nil
+local autoSellEnabled = false
+local autoSellThread = nil
+
+local SeedPickBtn = actionBtn(PBL, "Seed: Carrot", C.surface, 32)
+local BuySeedBtn = actionBtn(PBL, "Buy Selected Seed", C.greenDark, 32)
+stroke(BuySeedBtn, C.greenMid, 1, 0.2)
+local AutoBuyBtn = actionBtn(PBL, "Auto Buy: OFF", C.surface, 32)
+local SellInvBtn = actionBtn(PBL, "Sell Inventory", C.greenDark, 32)
+stroke(SellInvBtn, C.greenMid, 1, 0.2)
+local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
+
 sectionLbl(PBL, "REMOTE FIRE BUILDER")
 
 local function fieldGroup(parent, labelTxt, placeholder, defaultVal)
@@ -1466,238 +1502,9 @@ FarmDumpBtn.MouseButton1Click:Connect(function()
     pushLog("BLD", "Farm dump command copied/printed", C.green)
 end)
 
--- ============================================================
--- PANEL: FARM
--- ============================================================
-local PFARM = makePanel("farm")
-local PFARMLayout = Instance.new("UIListLayout")
-PFARMLayout.FillDirection = Enum.FillDirection.Vertical
-PFARMLayout.SortOrder = Enum.SortOrder.LayoutOrder
-PFARMLayout.Padding = UDim.new(0, 8)
-PFARMLayout.Parent = PFARM
-pad(PFARM, 2, 4, 4, 8)
-
-sectionLbl(PFARM, "FARM")
-
-local seedOptions = {
-    "Carrot", "Strawberry", "Blueberry", "Tomato", "Corn", "Daffodil",
-    "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", "Cactus",
-    "Dragon Fruit", "Mango", "Grape", "Mushroom", "Pepper", "Cacao",
-    "Beanstalk", "Sugar Apple", "Burning Bud", "Giant Pinecone", "Elder Strawberry",
-}
-local rareSeeds = {
-    ["Beanstalk"] = true, ["Sugar Apple"] = true, ["Burning Bud"] = true,
-    ["Giant Pinecone"] = true, ["Elder Strawberry"] = true, ["Dragon Fruit"] = true,
-    ["Mango"] = true, ["Grape"] = true, ["Pepper"] = true, ["Cacao"] = true,
-}
-local selectedSeeds = {}
-local shopData = {}
-local autoBuyEnabled = false
-local autoBuyThread = nil
-local autoSellEnabled = false
-local autoSellThread = nil
-local lastMoneyText = "?"
-local lastBuyText = "Ready"
-
-local FarmStatusCard = Instance.new("Frame")
-FarmStatusCard.Size = UDim2.new(1, 0, 0, 54)
-FarmStatusCard.BackgroundColor3 = C.surface
-FarmStatusCard.BorderSizePixel = 0
-FarmStatusCard.ZIndex = 104
-FarmStatusCard.Parent = PFARM
-corner(FarmStatusCard, 8)
-stroke(FarmStatusCard, C.border, 1, 0)
-
-local FarmStatusLbl = Instance.new("TextLabel")
-FarmStatusLbl.Size = UDim2.new(1, 0, 1, 0)
-FarmStatusLbl.BackgroundTransparency = 1
-FarmStatusLbl.TextColor3 = C.text
-FarmStatusLbl.TextSize = 10
-FarmStatusLbl.Font = Enum.Font.Code
-FarmStatusLbl.TextXAlignment = Enum.TextXAlignment.Left
-FarmStatusLbl.TextYAlignment = Enum.TextYAlignment.Center
-FarmStatusLbl.TextWrapped = true
-FarmStatusLbl.ZIndex = 105
-FarmStatusLbl.Parent = FarmStatusCard
-pad(FarmStatusLbl, 10, 10, 4, 4)
-
-local FarmChooseBtn = actionBtn(PFARM, "Choose Seeds", C.surface, 32)
-local FarmScanBtn = actionBtn(PFARM, "Scan Shop", C.surface, 32)
-local FarmBuyBtn = actionBtn(PFARM, "Buy Selected Once", C.greenDark, 32)
-stroke(FarmBuyBtn, C.greenMid, 1, 0.2)
-local FarmAutoBuyBtn = actionBtn(PFARM, "Auto Buy: OFF", C.surface, 32)
-local FarmSellBtn = actionBtn(PFARM, "Sell Inventory", C.greenDark, 32)
-stroke(FarmSellBtn, C.greenMid, 1, 0.2)
-local FarmAutoSellBtn = actionBtn(PFARM, "Auto Sell: OFF", C.surface, 32)
-
-local SeedModal = Instance.new("Frame")
-SeedModal.Size = UDim2.new(1, -10, 1, -10)
-SeedModal.Position = UDim2.new(0, 5, 0, 5)
-SeedModal.BackgroundColor3 = C.card
-SeedModal.BorderSizePixel = 0
-SeedModal.Visible = false
-SeedModal.ZIndex = 160
-SeedModal.Parent = Content
-corner(SeedModal, 10)
-stroke(SeedModal, C.greenMid, 1, 0.15)
-pad(SeedModal, 10, 10, 10, 10)
-
-local SeedModalLayout = Instance.new("UIListLayout")
-SeedModalLayout.FillDirection = Enum.FillDirection.Vertical
-SeedModalLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SeedModalLayout.Padding = UDim.new(0, 7)
-SeedModalLayout.Parent = SeedModal
-
-local SeedModalTitle = Instance.new("TextLabel")
-SeedModalTitle.Size = UDim2.new(1, 0, 0, 22)
-SeedModalTitle.BackgroundTransparency = 1
-SeedModalTitle.Text = "Choose Seeds"
-SeedModalTitle.TextColor3 = C.white
-SeedModalTitle.TextSize = 13
-SeedModalTitle.Font = Enum.Font.GothamBold
-SeedModalTitle.TextXAlignment = Enum.TextXAlignment.Left
-SeedModalTitle.ZIndex = 161
-SeedModalTitle.Parent = SeedModal
-
-local SeedModalActions = Instance.new("Frame")
-SeedModalActions.Size = UDim2.new(1, 0, 0, 30)
-SeedModalActions.BackgroundTransparency = 1
-SeedModalActions.ZIndex = 161
-SeedModalActions.Parent = SeedModal
-
-local SeedModalActionLayout = Instance.new("UIGridLayout")
-SeedModalActionLayout.CellSize = UDim2.new(0.32, 0, 1, 0)
-SeedModalActionLayout.CellPadding = UDim2.new(0.02, 0, 0, 0)
-SeedModalActionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SeedModalActionLayout.Parent = SeedModalActions
-
-local SelectRareBtn = actionBtn(SeedModalActions, "Select Rare+", C.surface, 30)
-local ClearSeedsBtn = actionBtn(SeedModalActions, "Clear", C.surface, 30)
-local CloseSeedModalBtn = actionBtn(SeedModalActions, "Close", C.greenDark, 30)
-
-local SeedList = Instance.new("ScrollingFrame")
-SeedList.Size = UDim2.new(1, 0, 1, -66)
-SeedList.BackgroundColor3 = C.surface
-SeedList.BorderSizePixel = 0
-SeedList.ScrollBarThickness = 3
-SeedList.ScrollBarImageColor3 = C.greenMid
-SeedList.CanvasSize = UDim2.new(0, 0, 0, 0)
-SeedList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-SeedList.ZIndex = 161
-SeedList.Parent = SeedModal
-corner(SeedList, 8)
-pad(SeedList, 6, 6, 6, 6)
-
-local SeedListLayout = Instance.new("UIListLayout")
-SeedListLayout.FillDirection = Enum.FillDirection.Vertical
-SeedListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SeedListLayout.Padding = UDim.new(0, 5)
-SeedListLayout.Parent = SeedList
-
-local function parseNumberText(txt)
-    txt = tostring(txt or ""):upper():gsub(",", "")
-    local num, suffix = txt:match("([%d%.]+)%s*([KMBT]?)")
-    num = tonumber(num)
-    if not num then return nil end
-    local mult = ({ K = 1e3, M = 1e6, B = 1e9, T = 1e12 })[suffix] or 1
-    return num * mult
-end
-
-local function selectedSeedCount()
-    local n = 0
-    for _, name in ipairs(seedOptions) do if selectedSeeds[name] then n += 1 end end
-    return n
-end
-
-local function updateFarmStatus()
-    FarmStatusLbl.Text = "Selected: " .. selectedSeedCount() .. " | Money: " .. lastMoneyText .. "\n" .. lastBuyText
-end
-
-local function getSeedScroll()
-    local gui = PlayerGui:FindFirstChild("Seed_Shop")
-    local shop = gui and gui:FindFirstChild("Frame")
-    return shop and shop:FindFirstChild("ScrollingFrame")
-end
-
-local function scanMoney()
-    local gui = PlayerGui:FindFirstChild("Sheckles_UI")
-    if not gui then lastMoneyText = "?"; return nil end
-    local bestText, bestVal = "?", nil
-    for _, d in ipairs(gui:GetDescendants()) do
-        if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
-            local txt = tostring(d.Text or "")
-            local val = parseNumberText(txt)
-            if val and (not bestVal or val > bestVal) then
-                bestVal = val
-                bestText = txt
-            end
-        end
-    end
-    lastMoneyText = bestText
-    return bestVal
-end
-
-local function scanSeedItem(seedName, item)
-    local data = shopData[seedName] or { stockText = "?", priceText = "?" }
-    data.item = item
-    data.stock = nil
-    data.price = nil
-    for _, d in ipairs(item:GetDescendants()) do
-        if d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
-            local txt = tostring(d.Text or "")
-            local low = txt:lower()
-            if data.stockText == "?" and (low:find("stock") or low:match("x%s*%d") or low:match("%d+%s*x")) then
-                data.stockText = txt
-                data.stock = tonumber(txt:match("(%d+)"))
-            end
-            if data.priceText == "?" and (low:find("¢") or low:find("$") or low:find("sheck") or low:find("buy")) then
-                data.priceText = txt
-                data.price = parseNumberText(txt)
-            end
-        end
-    end
-    shopData[seedName] = data
-end
-
-local function scanSeedShop()
-    local scroll = getSeedScroll()
-    if scroll then
-        local seen = {}
-        for _, child in ipairs(scroll:GetChildren()) do
-            if child:IsA("Frame") or child:IsA("ImageButton") then
-                local name = child.Name
-                seen[name] = true
-                local exists = false
-                for _, seedName in ipairs(seedOptions) do if seedName == name then exists = true end end
-                if not exists then table.insert(seedOptions, name) end
-                scanSeedItem(name, child)
-            end
-        end
-    end
-    scanMoney()
-    updateFarmStatus()
-end
-
-local function refreshSeedRows()
-    scanSeedShop()
-    for _, child in ipairs(SeedList:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-    for _, seedName in ipairs(seedOptions) do
-        local data = shopData[seedName] or { stockText = "?", priceText = "?" }
-        local row = actionBtn(SeedList, "", selectedSeeds[seedName] and C.greenDark or C.card, 30)
-        row.ZIndex = 162
-        row.TextXAlignment = Enum.TextXAlignment.Left
-        row.Text = (selectedSeeds[seedName] and "[x] " or "[ ] ") .. seedName .. " | Stock: " .. (data.stockText or "?") .. " | Price: " .. (data.priceText or "?")
-        row.MouseButton1Click:Connect(function()
-            selectedSeeds[seedName] = not selectedSeeds[seedName]
-            refreshSeedRows()
-        end)
-    end
-    updateFarmStatus()
-end
-
-local function moveToSeedShop()
+local function buySelectedSeedOnce()
+    local seedName = seedOptions[selectedSeedIndex]
+    setStatus("Buying " .. seedName .. " seed...", C.yellow)
     pcall(function()
         local ch, _, root = getCharacter()
         if ch and root then
@@ -1706,18 +1513,11 @@ local function moveToSeedShop()
             ch:PivotTo(CFrame.new(36.4, 3.0, -24.6))
         end
     end)
-end
-
-local function buySeedOnce(seedName)
-    scanSeedShop()
-    local data = shopData[seedName]
-    local money = scanMoney()
-    if data and data.stock == 0 then return false, "SKIP no stock: " .. seedName end
-    if data and data.price and money and money < data.price then return false, "SKIP no money: " .. seedName end
-    moveToSeedShop()
     task.wait(0.4)
     local ok, msg = pcall(function()
-        local scroll = getSeedScroll()
+        local gui = PlayerGui:FindFirstChild("Seed_Shop")
+        local shop = gui and gui:FindFirstChild("Frame")
+        local scroll = shop and shop:FindFirstChild("ScrollingFrame")
         local item = scroll and scroll:FindFirstChild(seedName)
         local frame = item and item:FindFirstChild("Frame")
         local buy = frame and frame:FindFirstChild("Sheckles_Buy")
@@ -1725,27 +1525,11 @@ local function buySeedOnce(seedName)
         if type(firesignal) ~= "function" then error("firesignal unavailable") end
         firesignal(buy.Activated)
     end)
-    return ok, ok and ("Buy clicked: " .. seedName) or ("Buy failed " .. seedName .. ": " .. tostring(msg))
-end
-
-local function buySelectedSeedsOnce()
-    if selectedSeedCount() == 0 then
-        lastBuyText = "Select at least one seed first"
-        updateFarmStatus()
-        setStatus(lastBuyText, C.red)
-        return false
-    end
-    for _, seedName in ipairs(seedOptions) do
-        if selectedSeeds[seedName] then
-            local ok, msg = buySeedOnce(seedName)
-            lastBuyText = msg
-            updateFarmStatus()
-            setStatus(msg, ok and C.green or C.yellow)
-            pushLog(ok and "FARM" or "SKIP", msg, ok and C.green or C.yellow)
-            task.wait(0.3)
-        end
-    end
-    return true
+    ResultLbl.Text = ok and ("Buy " .. seedName .. " clicked") or ("Buy " .. seedName .. " failed: " .. tostring(msg))
+    ResultLbl.TextColor3 = ok and C.green or C.red
+    setStatus(ResultLbl.Text, ok and C.green or C.red)
+    pushLog(ok and "FARM" or "ERR", ResultLbl.Text, ok and C.green or C.red)
+    return ok
 end
 
 local function sellInventoryOnce()
@@ -1760,71 +1544,46 @@ local function sellInventoryOnce()
     end)
     task.wait(0.6)
     local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
-    lastBuyText = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
-    updateFarmStatus()
-    setStatus(lastBuyText, ok and C.green or C.red)
+    ResultLbl.Text = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
+    ResultLbl.TextColor3 = ok and C.green or C.red
+    setStatus(ResultLbl.Text, ok and C.green or C.red)
     pushLog(ok and "FARM" or "ERR", "Sell_Inventory → " .. msg, ok and C.green or C.red)
     return ok
 end
 
-FarmChooseBtn.MouseButton1Click:Connect(function()
-    SeedModal.Visible = true
-    refreshSeedRows()
+SeedPickBtn.MouseButton1Click:Connect(function()
+    selectedSeedIndex += 1
+    if selectedSeedIndex > #seedOptions then selectedSeedIndex = 1 end
+    SeedPickBtn.Text = "Seed: " .. seedOptions[selectedSeedIndex]
 end)
 
-CloseSeedModalBtn.MouseButton1Click:Connect(function()
-    SeedModal.Visible = false
-    updateFarmStatus()
+BuySeedBtn.MouseButton1Click:Connect(function()
+    task.spawn(buySelectedSeedOnce)
 end)
 
-ClearSeedsBtn.MouseButton1Click:Connect(function()
-    selectedSeeds = {}
-    refreshSeedRows()
-end)
-
-SelectRareBtn.MouseButton1Click:Connect(function()
-    selectedSeeds = {}
-    scanSeedShop()
-    for _, name in ipairs(seedOptions) do
-        if rareSeeds[name] then selectedSeeds[name] = true end
-    end
-    refreshSeedRows()
-end)
-
-FarmScanBtn.MouseButton1Click:Connect(function()
-    scanSeedShop()
-    refreshSeedRows()
-    lastBuyText = "Shop scanned"
-    updateFarmStatus()
-end)
-
-FarmBuyBtn.MouseButton1Click:Connect(function()
-    task.spawn(buySelectedSeedsOnce)
-end)
-
-FarmAutoBuyBtn.MouseButton1Click:Connect(function()
+AutoBuyBtn.MouseButton1Click:Connect(function()
     autoBuyEnabled = not autoBuyEnabled
-    FarmAutoBuyBtn.Text = autoBuyEnabled and "Auto Buy: ON" or "Auto Buy: OFF"
-    FarmAutoBuyBtn.BackgroundColor3 = autoBuyEnabled and C.greenDark or C.surface
+    AutoBuyBtn.Text = autoBuyEnabled and "Auto Buy: ON" or "Auto Buy: OFF"
+    AutoBuyBtn.BackgroundColor3 = autoBuyEnabled and C.greenDark or C.surface
     if autoBuyEnabled and not autoBuyThread then
         autoBuyThread = task.spawn(function()
             while autoBuyEnabled do
-                pcall(buySelectedSeedsOnce)
-                task.wait(2)
+                pcall(buySelectedSeedOnce)
+                task.wait(1.5)
             end
             autoBuyThread = nil
         end)
     end
 end)
 
-FarmSellBtn.MouseButton1Click:Connect(function()
+SellInvBtn.MouseButton1Click:Connect(function()
     task.spawn(sellInventoryOnce)
 end)
 
-FarmAutoSellBtn.MouseButton1Click:Connect(function()
+AutoSellBtn.MouseButton1Click:Connect(function()
     autoSellEnabled = not autoSellEnabled
-    FarmAutoSellBtn.Text = autoSellEnabled and "Auto Sell: ON" or "Auto Sell: OFF"
-    FarmAutoSellBtn.BackgroundColor3 = autoSellEnabled and C.greenDark or C.surface
+    AutoSellBtn.Text = autoSellEnabled and "Auto Sell: ON" or "Auto Sell: OFF"
+    AutoSellBtn.BackgroundColor3 = autoSellEnabled and C.greenDark or C.surface
     if autoSellEnabled and not autoSellThread then
         autoSellThread = task.spawn(function()
             while autoSellEnabled do
@@ -1835,8 +1594,6 @@ FarmAutoSellBtn.MouseButton1Click:Connect(function()
         end)
     end
 end)
-
-updateFarmStatus()
 
 -- ============================================================
 -- PANEL: EGG ESP
@@ -2543,7 +2300,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.8 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.7 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.8 initialized")
+print("[LowHub] v4.1.7 initialized")
