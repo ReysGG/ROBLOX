@@ -1,4 +1,4 @@
--- LOW HUB v4.1.6 — Grow a Garden
+-- LOW HUB v4.1.7 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.6"
+VerLbl.Text = "v4.1.7"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1342,6 +1342,43 @@ PBLLayout.Padding = UDim.new(0, 8)
 PBLLayout.Parent = PBL
 pad(PBL, 2, 4, 4, 8)
 
+sectionLbl(PBL, "FARMER")
+
+local seedOptions = {
+    "Carrot",
+    "Strawberry",
+    "Blueberry",
+    "Tomato",
+    "Corn",
+    "Daffodil",
+    "Watermelon",
+    "Pumpkin",
+    "Apple",
+    "Bamboo",
+    "Coconut",
+    "Cactus",
+    "Dragon Fruit",
+    "Mango",
+    "Grape",
+    "Mushroom",
+    "Pepper",
+    "Cacao",
+    "Beanstalk",
+}
+local selectedSeedIndex = 1
+local autoBuyEnabled = false
+local autoBuyThread = nil
+local autoSellEnabled = false
+local autoSellThread = nil
+
+local SeedPickBtn = actionBtn(PBL, "Seed: Carrot", C.surface, 32)
+local BuySeedBtn = actionBtn(PBL, "Buy Selected Seed", C.greenDark, 32)
+stroke(BuySeedBtn, C.greenMid, 1, 0.2)
+local AutoBuyBtn = actionBtn(PBL, "Auto Buy: OFF", C.surface, 32)
+local SellInvBtn = actionBtn(PBL, "Sell Inventory", C.greenDark, 32)
+stroke(SellInvBtn, C.greenMid, 1, 0.2)
+local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
+
 sectionLbl(PBL, "REMOTE FIRE BUILDER")
 
 local function fieldGroup(parent, labelTxt, placeholder, defaultVal)
@@ -1465,36 +1502,35 @@ FarmDumpBtn.MouseButton1Click:Connect(function()
     pushLog("BLD", "Farm dump command copied/printed", C.green)
 end)
 
-local BuyCarrotBtn = actionBtn(PBL, "Buy Carrot Test", C.surface, 32)
-local autoSellEnabled = false
-local autoSellThread = nil
-local SellInvBtn = actionBtn(PBL, "Sell Inventory", C.greenDark, 32)
-stroke(SellInvBtn, C.greenMid, 1, 0.2)
-local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
-
-local function buyCarrotOnce()
-    setStatus("Buying Carrot seed...", C.yellow)
+local function buySelectedSeedOnce()
+    local seedName = seedOptions[selectedSeedIndex]
+    setStatus("Buying " .. seedName .. " seed...", C.yellow)
+    pcall(function()
+        local ch, _, root = getCharacter()
+        if ch and root then
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            ch:PivotTo(CFrame.new(36.4, 3.0, -24.6))
+        end
+    end)
+    task.wait(0.4)
     local ok, msg = pcall(function()
         local gui = PlayerGui:FindFirstChild("Seed_Shop")
         local shop = gui and gui:FindFirstChild("Frame")
         local scroll = shop and shop:FindFirstChild("ScrollingFrame")
-        local carrot = scroll and scroll:FindFirstChild("Carrot")
-        local frame = carrot and carrot:FindFirstChild("Frame")
+        local item = scroll and scroll:FindFirstChild(seedName)
+        local frame = item and item:FindFirstChild("Frame")
         local buy = frame and frame:FindFirstChild("Sheckles_Buy")
-        if not buy then error("Carrot buy button not found") end
+        if not buy then error(seedName .. " buy button not found") end
         if type(firesignal) ~= "function" then error("firesignal unavailable") end
         firesignal(buy.Activated)
     end)
-    ResultLbl.Text = ok and "Buy Carrot clicked" or ("Buy Carrot failed: " .. tostring(msg))
+    ResultLbl.Text = ok and ("Buy " .. seedName .. " clicked") or ("Buy " .. seedName .. " failed: " .. tostring(msg))
     ResultLbl.TextColor3 = ok and C.green or C.red
     setStatus(ResultLbl.Text, ok and C.green or C.red)
     pushLog(ok and "FARM" or "ERR", ResultLbl.Text, ok and C.green or C.red)
     return ok
 end
-
-BuyCarrotBtn.MouseButton1Click:Connect(function()
-    task.spawn(buyCarrotOnce)
-end)
 
 local function sellInventoryOnce()
     setStatus("Moving to Sell Stands...", C.yellow)
@@ -1514,6 +1550,31 @@ local function sellInventoryOnce()
     pushLog(ok and "FARM" or "ERR", "Sell_Inventory → " .. msg, ok and C.green or C.red)
     return ok
 end
+
+SeedPickBtn.MouseButton1Click:Connect(function()
+    selectedSeedIndex += 1
+    if selectedSeedIndex > #seedOptions then selectedSeedIndex = 1 end
+    SeedPickBtn.Text = "Seed: " .. seedOptions[selectedSeedIndex]
+end)
+
+BuySeedBtn.MouseButton1Click:Connect(function()
+    task.spawn(buySelectedSeedOnce)
+end)
+
+AutoBuyBtn.MouseButton1Click:Connect(function()
+    autoBuyEnabled = not autoBuyEnabled
+    AutoBuyBtn.Text = autoBuyEnabled and "Auto Buy: ON" or "Auto Buy: OFF"
+    AutoBuyBtn.BackgroundColor3 = autoBuyEnabled and C.greenDark or C.surface
+    if autoBuyEnabled and not autoBuyThread then
+        autoBuyThread = task.spawn(function()
+            while autoBuyEnabled do
+                pcall(buySelectedSeedOnce)
+                task.wait(1.5)
+            end
+            autoBuyThread = nil
+        end)
+    end
+end)
 
 SellInvBtn.MouseButton1Click:Connect(function()
     task.spawn(sellInventoryOnce)
@@ -2239,7 +2300,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.6 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.7 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.6 initialized")
+print("[LowHub] v4.1.7 initialized")
