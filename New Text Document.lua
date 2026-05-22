@@ -1,4 +1,4 @@
--- LOW HUB v4.1 — Grow a Garden
+-- LOW HUB v4.1.2 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1"
+VerLbl.Text = "v4.1.2"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1412,7 +1412,7 @@ ResultLbl.Parent = ResultCard
 pad(ResultLbl, 10, 10, 0, 0)
 
 local TipCard = Instance.new("Frame")
-TipCard.Size = UDim2.new(1, 0, 0, 70)
+TipCard.Size = UDim2.new(1, 0, 0, 86)
 TipCard.BackgroundColor3 = C.surface
 TipCard.BorderSizePixel = 0
 TipCard.ZIndex = 104
@@ -1422,7 +1422,7 @@ corner(TipCard, 8)
 local TipLbl = Instance.new("TextLabel")
 TipLbl.Size = UDim2.new(1, 0, 1, 0)
 TipLbl.BackgroundTransparency = 1
-TipLbl.Text = "💡  Path dimulai dari ReplicatedStorage\n    Pisahkan subfolder dengan titik (.)\n    Contoh: GameEvents.TradeEvents.Open\n    Kosongkan arg jika tidak diperlukan"
+TipLbl.Text = "BUILDER\nPath mulai dari ReplicatedStorage, contoh: GameEvents.PlayerTeleportTriggered\nFARM TOOLS\nSell Inventory = teleport ke Sell Stands lalu fire Sell_Inventory"
 TipLbl.TextColor3 = C.textFaint
 TipLbl.TextSize = 9
 TipLbl.Font = Enum.Font.Gotham
@@ -1453,6 +1453,7 @@ FireBuildBtn.MouseButton1Click:Connect(function()
     end)
 end)
 
+sectionLbl(PBL, "FARM TOOLS")
 local FarmDumpBtn = actionBtn(PBL, "Dump Farm Remotes", C.surface, 32)
 FarmDumpBtn.MouseButton1Click:Connect(function()
     local cmd = '-- Dump remotes auto farm\nfor _, v in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do\n    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then\n        local n = v.Name:lower()\n        if n:find("sell") or n:find("garden") or n:find("seed") or n:find("plant") or n:find("harvest") or n:find("crop") or n:find("buy") or n:find("shop") or n:find("inventory") then\n            print(v.ClassName, v:GetFullName())\n        end\n    end\nend'
@@ -1472,8 +1473,13 @@ local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
 
 local function sellInventoryOnce()
     setStatus("Moving to Sell Stands...", C.yellow)
-    pcall(function() teleportToNPC("Sell Stands") end)
-    task.wait(0.8)
+    local moved = false
+    pcall(function()
+        local ok = teleportToPos(Vector3.new(40.4, 2.8, 0.4))
+        moved = ok == true
+    end)
+    if not moved then pcall(function() teleportToNPC("Sell Stands") end) end
+    task.wait(1.2)
     local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
     ResultLbl.Text = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
     ResultLbl.TextColor3 = ok and C.green or C.red
@@ -2206,7 +2212,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.2 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1 initialized")
+print("[LowHub] v4.1.2 initialized")
