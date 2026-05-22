@@ -1,4 +1,4 @@
--- LOW HUB v4.1.1 — Grow a Garden
+-- LOW HUB v4.1 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -720,7 +720,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.1"
+VerLbl.Text = "v4.1"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -827,7 +827,6 @@ local TABS = {
     { id = "teleport", icon = "⊹",  label = "TP"  },
     { id = "console",  icon = "≡",  label = "LOG" },
     { id = "esp",      icon = "◉",  label = "ESP" },
-    { id = "farm",     icon = "↻",  label = "FARM" },
     { id = "builder",  icon = "◈",  label = "BLD" },
     { id = "soon",     icon = "◌",  label = "···" },
 }
@@ -1430,204 +1429,6 @@ FireBuildBtn.MouseButton1Click:Connect(function()
         setStatus(display, ok and C.green or C.red)
         pushLog(ok and "BLD" or "ERR", path .. (arg ~= "" and (' "' .. arg .. '"') or ""), ok and C.green or C.red)
     end)
-end)
-
--- ============================================================
--- PANEL: AUTO FARM
--- ============================================================
-local PFRM = makePanel("farm")
-local PFRMLayout = Instance.new("UIListLayout")
-PFRMLayout.FillDirection = Enum.FillDirection.Vertical
-PFRMLayout.SortOrder = Enum.SortOrder.LayoutOrder
-PFRMLayout.Padding = UDim.new(0, 8)
-PFRMLayout.Parent = PFRM
-pad(PFRM, 2, 4, 4, 8)
-
-sectionLbl(PFRM, "AUTO FARM")
-
-local farmEnabled = false
-local farmDelay = 5
-local farmThread = nil
-local farmSteps = {
-    buy = true,
-    plant = true,
-    harvest = true,
-    sell = true,
-}
-
-local FarmInfo = Instance.new("Frame")
-FarmInfo.Size = UDim2.new(1, 0, 0, 58)
-FarmInfo.BackgroundColor3 = C.card
-FarmInfo.BorderSizePixel = 0
-FarmInfo.ZIndex = 104
-FarmInfo.Parent = PFRM
-corner(FarmInfo, 10)
-stroke(FarmInfo, C.border, 1, 0)
-
-local FarmInfoLbl = Instance.new("TextLabel")
-FarmInfoLbl.Size = UDim2.new(1, -16, 1, 0)
-FarmInfoLbl.Position = UDim2.new(0, 8, 0, 0)
-FarmInfoLbl.BackgroundTransparency = 1
-FarmInfoLbl.Text = "Full Farm scaffold: isi remote path/arg, kosong = skip. Mulai dari satu remote dulu."
-FarmInfoLbl.TextColor3 = C.textDim
-FarmInfoLbl.TextSize = 10
-FarmInfoLbl.Font = Enum.Font.Gotham
-FarmInfoLbl.TextWrapped = true
-FarmInfoLbl.TextXAlignment = Enum.TextXAlignment.Left
-FarmInfoLbl.ZIndex = 105
-FarmInfoLbl.Parent = FarmInfo
-
-local FarmControlRow = Instance.new("Frame")
-FarmControlRow.Size = UDim2.new(1, 0, 0, 34)
-FarmControlRow.BackgroundTransparency = 1
-FarmControlRow.ZIndex = 104
-FarmControlRow.Parent = PFRM
-local FarmControlLayout = Instance.new("UIListLayout")
-FarmControlLayout.FillDirection = Enum.FillDirection.Horizontal
-FarmControlLayout.SortOrder = Enum.SortOrder.LayoutOrder
-FarmControlLayout.Padding = UDim.new(0, 6)
-FarmControlLayout.Parent = FarmControlRow
-
-local FarmToggleBtn = actionBtn(FarmControlRow, "Auto Farm: OFF", C.surface, 34)
-FarmToggleBtn.Size = UDim2.new(0.5, -3, 1, 0)
-local FarmDelayBtn = actionBtn(FarmControlRow, "Delay: 5s", C.surface, 34)
-FarmDelayBtn.Size = UDim2.new(0.5, -3, 1, 0)
-
-local FarmStepRow = Instance.new("Frame")
-FarmStepRow.Size = UDim2.new(1, 0, 0, 34)
-FarmStepRow.BackgroundTransparency = 1
-FarmStepRow.ZIndex = 104
-FarmStepRow.Parent = PFRM
-local FarmStepLayout = Instance.new("UIListLayout")
-FarmStepLayout.FillDirection = Enum.FillDirection.Horizontal
-FarmStepLayout.SortOrder = Enum.SortOrder.LayoutOrder
-FarmStepLayout.Padding = UDim.new(0, 6)
-FarmStepLayout.Parent = FarmStepRow
-
-local function farmStepBtn(key, label)
-    local btn = actionBtn(FarmStepRow, label .. ": ON", C.surface, 34)
-    btn.Size = UDim2.new(0.25, -5, 1, 0)
-    btn.TextSize = 9
-    btn.MouseButton1Click:Connect(function()
-        farmSteps[key] = not farmSteps[key]
-        btn.Text = label .. ": " .. (farmSteps[key] and "ON" or "OFF")
-        btn.TextColor3 = farmSteps[key] and C.white or C.textDim
-    end)
-    return btn
-end
-
-farmStepBtn("buy", "Buy")
-farmStepBtn("plant", "Plant")
-farmStepBtn("harvest", "Harvest")
-farmStepBtn("sell", "Sell")
-
-sectionLbl(PFRM, "REMOTE CONFIG")
-local _, FarmBuyPath = fieldGroup(PFRM, "BUY REMOTE PATH", "GameEvents.BuySeed", "")
-local _, FarmBuyArg = fieldGroup(PFRM, "BUY ARG", "Carrot", "")
-local _, FarmPlantPath = fieldGroup(PFRM, "PLANT REMOTE PATH", "GameEvents.PlantSeed", "")
-local _, FarmPlantArg = fieldGroup(PFRM, "PLANT ARG", "SeedName", "")
-local _, FarmHarvestPath = fieldGroup(PFRM, "HARVEST REMOTE PATH", "GameEvents.Harvest", "")
-local _, FarmHarvestArg = fieldGroup(PFRM, "HARVEST ARG", "", "")
-local _, FarmSellPath = fieldGroup(PFRM, "SELL REMOTE PATH", "GameEvents.SellInventory", "")
-local _, FarmSellArg = fieldGroup(PFRM, "SELL ARG", "", "")
-
-local FarmActionRow = Instance.new("Frame")
-FarmActionRow.Size = UDim2.new(1, 0, 0, 34)
-FarmActionRow.BackgroundTransparency = 1
-FarmActionRow.ZIndex = 104
-FarmActionRow.Parent = PFRM
-local FarmActionLayout = Instance.new("UIListLayout")
-FarmActionLayout.FillDirection = Enum.FillDirection.Horizontal
-FarmActionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-FarmActionLayout.Padding = UDim.new(0, 6)
-FarmActionLayout.Parent = FarmActionRow
-
-local FarmOnceBtn = actionBtn(FarmActionRow, "Run 1 Cycle", C.greenDark, 34)
-FarmOnceBtn.Size = UDim2.new(0.5, -3, 1, 0)
-local FarmDumpBtn = actionBtn(FarmActionRow, "Dump Farm Remotes", C.surface, 34)
-FarmDumpBtn.Size = UDim2.new(0.5, -3, 1, 0)
-
-local function runFarmRemote(label, pathBox, argBox)
-    local path = pathBox.Text
-    local arg = argBox.Text
-    if path == "" then
-        pushLog("SKIP", "Farm " .. label .. ": no remote path", C.textDim)
-        return true
-    end
-    local ok, msg = fireRemote(path, arg)
-    pushLog(ok and "FARM" or "ERR", label .. " → " .. msg, ok and C.green or C.red)
-    setStatus(label .. ": " .. msg, ok and C.green or C.red)
-    return ok
-end
-
-local function runFarmCycle()
-    pushLog("FARM", "Cycle started", C.green)
-    if farmSteps.buy then
-        pcall(function() teleportToNPC("Seed Stands") end)
-        runFarmRemote("Buy", FarmBuyPath, FarmBuyArg)
-        task.wait(0.4)
-    end
-    if farmSteps.plant then
-        runFarmRemote("Plant", FarmPlantPath, FarmPlantArg)
-        task.wait(0.4)
-    end
-    if farmSteps.harvest then
-        runFarmRemote("Harvest", FarmHarvestPath, FarmHarvestArg)
-        task.wait(0.4)
-    end
-    if farmSteps.sell then
-        pcall(function() teleportToNPC("Sell Stands") end)
-        runFarmRemote("Sell", FarmSellPath, FarmSellArg)
-    end
-    pushLog("FARM", "Cycle done", C.green)
-end
-
-FarmOnceBtn.MouseButton1Click:Connect(function()
-    task.spawn(function()
-        local ok, err = pcall(runFarmCycle)
-        if not ok then pushLog("ERR", "Farm cycle: " .. tostring(err), C.red) end
-    end)
-end)
-
-FarmToggleBtn.MouseButton1Click:Connect(function()
-    farmEnabled = not farmEnabled
-    FarmToggleBtn.Text = farmEnabled and "Auto Farm: ON" or "Auto Farm: OFF"
-    FarmToggleBtn.BackgroundColor3 = farmEnabled and C.greenDark or C.surface
-    setStatus(FarmToggleBtn.Text, farmEnabled and C.green or C.textMid)
-    if farmEnabled and not farmThread then
-        farmThread = task.spawn(function()
-            while farmEnabled do
-                local ok, err = pcall(runFarmCycle)
-                if not ok then pushLog("ERR", "Auto farm: " .. tostring(err), C.red) end
-                task.wait(farmDelay)
-            end
-            farmThread = nil
-        end)
-    end
-end)
-
-FarmDelayBtn.MouseButton1Click:Connect(function()
-    local vals = {2, 5, 10, 15}
-    local idx = 1
-    for i, v in ipairs(vals) do if farmDelay == v then idx = i break end end
-    farmDelay = vals[(idx % #vals) + 1]
-    FarmDelayBtn.Text = "Delay: " .. farmDelay .. "s"
-end)
-
-FarmDumpBtn.MouseButton1Click:Connect(function()
-    local cmd = [[-- Dump remotes auto farm
-for _, v in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-        local n = v.Name:lower()
-        if n:find("sell") or n:find("garden") or n:find("seed") or n:find("plant") or n:find("harvest") or n:find("crop") or n:find("buy") or n:find("shop") or n:find("inventory") then
-            print(v.ClassName, v:GetFullName())
-        end
-    end
-end]]
-    pcall(function() setclipboard(cmd) end)
-    print(cmd)
-    pushLog("FARM", "Dump command copied/printed", C.green)
-    setStatus("Farm dump command ready", C.green)
 end)
 
 -- ============================================================
@@ -2334,7 +2135,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.1 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.1 initialized")
+print("[LowHub] v4.1 initialized")
