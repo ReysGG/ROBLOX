@@ -1,4 +1,4 @@
--- LOW HUB v4.1.15 - Grow a Garden
+-- LOW HUB v4.1.16 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -755,7 +755,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.15"
+VerLbl.Text = "v4.1.16"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -864,7 +864,6 @@ local TABS = {
     { id = "console",  icon = "L",  label = "LOG" },
     { id = "esp",      icon = "E",  label = "ESP" },
     { id = "builder",  icon = "B",  label = "BLD" },
-    { id = "soon",     icon = "S",  label = "..." },
 }
 
 local tabBtns = {}
@@ -2245,87 +2244,6 @@ end)
 
 
 -- ============================================================
--- PANEL: COMING SOON
--- ============================================================
-local PSN = makePanel("soon")
-local PSNLayout = Instance.new("UIListLayout")
-PSNLayout.FillDirection = Enum.FillDirection.Vertical
-PSNLayout.SortOrder = Enum.SortOrder.LayoutOrder
-PSNLayout.Padding = UDim.new(0, 6)
-PSNLayout.Parent = PSN
-pad(PSN, 2, 4, 4, 8)
-
-sectionLbl(PSN, "COMING SOON")
-
-local SOON_ITEMS = {
-    { icon = "AF", title = "Auto Farm",       desc = "Loop teleport + sell automatically" },
-    { icon = "IN", title = "Inventory",        desc = "View & manage player inventory"     },
-    { icon = "SH", title = "Server Hop",       desc = "Find servers with specific items"   },
-    { icon = "RS", title = "Remote Spy Lite",  desc = "Monitor incoming RemoteEvent calls" },
-    { icon = "SR", title = "Seed Rain Alert",  desc = "Notify on MythicalSeedRainEvent"    },
-}
-
-for _, item in ipairs(SOON_ITEMS) do
-    local card = Instance.new("Frame")
-    card.Size = UDim2.new(1, 0, 0, 50)
-    card.BackgroundColor3 = C.card
-    card.BorderSizePixel = 0
-    card.ZIndex = 104
-    card.Parent = PSN
-    corner(card, 8)
-    stroke(card, C.border, 1, 0)
-
-    local ico = Instance.new("TextLabel")
-    ico.Size = UDim2.new(0, 32, 0, 32)
-    ico.Position = UDim2.new(0, 10, 0.5, -16)
-    ico.BackgroundColor3 = C.surface
-    ico.BorderSizePixel = 0
-    ico.Text = item.icon
-    ico.TextSize = 16
-    ico.ZIndex = 105
-    ico.Parent = card
-    corner(ico, 8)
-
-    local titleL = Instance.new("TextLabel")
-    titleL.Size = UDim2.new(1, -100, 0, 18)
-    titleL.Position = UDim2.new(0, 52, 0, 8)
-    titleL.BackgroundTransparency = 1
-    titleL.Text = item.title
-    titleL.TextColor3 = C.textMid
-    titleL.TextSize = 11
-    titleL.Font = Enum.Font.GothamBold
-    titleL.TextXAlignment = Enum.TextXAlignment.Left
-    titleL.ZIndex = 105
-    titleL.Parent = card
-
-    local descL = Instance.new("TextLabel")
-    descL.Size = UDim2.new(1, -100, 0, 14)
-    descL.Position = UDim2.new(0, 52, 0, 28)
-    descL.BackgroundTransparency = 1
-    descL.Text = item.desc
-    descL.TextColor3 = C.textFaint
-    descL.TextSize = 9
-    descL.Font = Enum.Font.Gotham
-    descL.TextXAlignment = Enum.TextXAlignment.Left
-    descL.ZIndex = 105
-    descL.Parent = card
-
-    local badge = Instance.new("TextLabel")
-    badge.Size = UDim2.new(0, 44, 0, 16)
-    badge.Position = UDim2.new(1, -52, 0.5, -8)
-    badge.BackgroundColor3 = C.greenDeep
-    badge.BorderSizePixel = 0
-    badge.Text = "SOON"
-    badge.TextColor3 = C.green
-    badge.TextSize = 8
-    badge.Font = Enum.Font.GothamBold
-    badge.ZIndex = 105
-    badge.Parent = card
-    corner(badge, 4)
-    stroke(badge, C.border, 1, 0)
-end
-
--- ============================================================
 -- TAB CONNECTIONS
 -- ============================================================
 for _, t in ipairs(TABS) do
@@ -2361,7 +2279,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.15"
+    FallbackBtn.Text = "LowHub v4.1.16"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2423,7 +2341,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.15 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.16 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.15 initialized")
+print("[LowHub] v4.1.16 initialized")
