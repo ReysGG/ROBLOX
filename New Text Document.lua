@@ -100,20 +100,26 @@ local function getGroundedCFrameNear(targetCFrame, distanceBack)
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
     raycastParams.IgnoreWater = true
 
+    local excludeList = {}
     local character = Player.Character
     if character then
-        raycastParams.FilterDescendantsInstances = { character }
+        table.insert(excludeList, character)
     end
+    local npc = getHoneySeedNPC()
+    if npc then
+        table.insert(excludeList, npc)
+    end
+    raycastParams.FilterDescendantsInstances = excludeList
 
     local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 
     local groundPosition
     if result then
-        groundPosition = result.Position + Vector3.new(0, 3, 0)
+        groundPosition = result.Position + Vector3.new(0, 0.5, 0)
         log("Raycast hit: " .. result.Instance:GetFullName() .. " at Y=" .. tostring(math.floor(result.Position.Y)))
     else
-        groundPosition = Vector3.new(backPosition.X, targetCFrame.Position.Y + 3, backPosition.Z)
-        log("Raycast miss — fallback ke Y NPC")
+        groundPosition = Vector3.new(backPosition.X, 0.5, backPosition.Z)
+        log("Raycast miss — fallback Y=0.5")
     end
 
     return CFrame.new(
@@ -153,6 +159,28 @@ local function teleportToHoneySeedNPC()
     return true, "Teleported to HoneySeedShop. Pos: " .. shortPos(after)
 end
 
+local function firePlayerTeleportTriggered()
+    local ok, err = pcall(function()
+        local gameEvents = ReplicatedStorage:WaitForChild("GameEvents", 5)
+        if not gameEvents then
+            error("GameEvents not found")
+        end
+
+        local remote = gameEvents:WaitForChild("PlayerTeleportTriggered", 5)
+        if not remote then
+            error("PlayerTeleportTriggered not found")
+        end
+
+        remote:FireServer("Seed Shop")
+    end)
+
+    if ok then
+        return true, "FireServer PlayerTeleportTriggered('Seed Shop') sent"
+    else
+        return false, "FireServer failed: " .. tostring(err)
+    end
+end
+
 local function openHoneySeedShopUI()
     local ok, controller = pcall(function()
         return require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EventShopUIController"))
@@ -177,8 +205,8 @@ Gui.Parent = PlayerGui
 
 local Main = Instance.new("Frame")
 Main.Name = "Main"
-Main.Size = UDim2.new(0, 360, 0, 330)
-Main.Position = UDim2.new(0, 30, 0.5, -165)
+Main.Size = UDim2.new(0, 360, 0, 375)
+Main.Position = UDim2.new(0, 30, 0.5, -187)
 Main.BackgroundColor3 = Color3.fromRGB(14, 20, 14)
 Main.BorderSizePixel = 0
 Main.Active = true
@@ -313,9 +341,10 @@ local function makeButton(name, text, y, color)
     return b
 end
 
-local TeleportBtn = makeButton("TeleportHoneySeedNPC", "Teleport to HoneySeedShop NPC", 200, Color3.fromRGB(35, 55, 35))
-local OpenShopBtn = makeButton("OpenHoneySeedShop", "Open Honey Seed Shop UI", 244, Color3.fromRGB(55, 45, 35))
-local PosBtn      = makeButton("PrintPosition", "Print Position", 288, Color3.fromRGB(35, 45, 55))
+local TeleportBtn   = makeButton("TeleportHoneySeedNPC", "Teleport to HoneySeedShop NPC", 200, Color3.fromRGB(35, 55, 35))
+local FireRemoteBtn = makeButton("FireRemote", "Fire PlayerTeleportTriggered", 244, Color3.fromRGB(35, 35, 65))
+local OpenShopBtn   = makeButton("OpenHoneySeedShop", "Open Honey Seed Shop UI", 288, Color3.fromRGB(55, 45, 35))
+local PosBtn        = makeButton("PrintPosition", "Print Position", 332, Color3.fromRGB(35, 45, 55))
 
 local Icon = Instance.new("TextButton")
 Icon.Name = "OpenIcon"
@@ -343,6 +372,17 @@ end
 TeleportBtn.MouseButton1Click:Connect(function()
     setStatus("Teleporting to HoneySeedShop...", Color3.fromRGB(255, 220, 80))
     local ok, msg = teleportToHoneySeedNPC()
+    if ok then
+        setStatus(msg, Color3.fromRGB(57, 255, 20))
+    else
+        setStatus(msg, Color3.fromRGB(255, 80, 80))
+        warnlog(msg)
+    end
+end)
+
+FireRemoteBtn.MouseButton1Click:Connect(function()
+    setStatus("Firing PlayerTeleportTriggered...", Color3.fromRGB(255, 220, 80))
+    local ok, msg = firePlayerTeleportTriggered()
     if ok then
         setStatus(msg, Color3.fromRGB(57, 255, 20))
     else
