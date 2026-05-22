@@ -1,4 +1,4 @@
--- LOW HUB v4.1.4 — Grow a Garden
+-- LOW HUB v4.1.5 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.4"
+VerLbl.Text = "v4.1.5"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1478,7 +1478,7 @@ local function sellInventoryOnce()
         if ch and root then
             root.AssemblyLinearVelocity = Vector3.zero
             root.AssemblyAngularVelocity = Vector3.zero
-            ch:PivotTo(CFrame.new(40.4, 3.2, -3.2))
+            ch:PivotTo(CFrame.new(37.1, 3.0, 1.5))
         end
     end)
     task.wait(0.6)
@@ -2214,7 +2214,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.4 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.5 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.4 initialized")
+print("[LowHub] v4.1.5 initialized")
