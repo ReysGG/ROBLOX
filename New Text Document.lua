@@ -1,4 +1,4 @@
--- LOW HUB v4.1 — Grow a Garden
+-- LOW HUB v4.2 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -431,6 +431,145 @@ local function buildWeightText(objectId, eggName, petName)
     return "? KG"
 end
 
+local automationSettings = {
+    petSearchText = "",
+    petMinRarity = "Rare",
+    petAlertOnlyNew = true,
+    autoHatchEnabled = false,
+    hatchMode = "Nearest Egg",
+    hatchRemotePath = "",
+    hatchArgMode = "Object UUID",
+    hatchDelay = 2.5,
+    hatchTargetRarity = "Legendary",
+}
+local detectedPets = {}
+local detectedPetSeen = {}
+local autoHatchThread = nil
+
+local function rarityPass(label, minLabel)
+    if minLabel == "All" then return true end
+    return (RARITY_RANK[label] or 0) >= (RARITY_RANK[minLabel] or 0)
+end
+
+local function findRemoteByKeywords(keywords)
+    local best = nil
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            local n = obj.Name:lower()
+            local ok = true
+            for _, kw in ipairs(keywords) do
+                if not n:find(kw, 1, true) then ok = false break end
+            end
+            if ok then best = obj break end
+        end
+    end
+    return best
+end
+
+local function getRemotePathFromReplicatedStorage(obj)
+    if not obj or not obj:IsDescendantOf(ReplicatedStorage) then return "" end
+    local parts = {}
+    local cur = obj
+    while cur and cur ~= ReplicatedStorage do
+        table.insert(parts, 1, cur.Name)
+        cur = cur.Parent
+    end
+    return table.concat(parts, ".")
+end
+
+local function resolveRemote(path)
+    if not path or path == "" then return nil, "Remote path empty" end
+    local obj = ReplicatedStorage
+    for _, part in ipairs(string.split(path, ".")) do
+        obj = obj and obj:FindFirstChild(part)
+        if not obj then return nil, "Not found: " .. part end
+    end
+    if not (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) then return nil, "Not a remote" end
+    return obj, "OK"
+end
+
+local function collectPetDetections()
+    local rows = {}
+    local search = automationSettings.petSearchText or ""
+    for id, object in pairs(activeEggs) do
+        if object and object:IsDescendantOf(workspace) then
+            local eggName = tostring(object:GetAttribute("EggName") or "?")
+            local petName = tostring((eggPets and eggPets[id]) or "?")
+            local rarityLabel, rarityColor = getRarityLabel(eggName, petName)
+            local dist = getEggDistance(object)
+            local matchesSearch = search == "" or eggName:lower():find(search, 1, true) or petName:lower():find(search, 1, true)
+            if matchesSearch and rarityPass(rarityLabel, automationSettings.petMinRarity) then
+                table.insert(rows, {
+                    id = id,
+                    object = object,
+                    eggName = eggName,
+                    petName = petName,
+                    rarityLabel = rarityLabel,
+                    rarityColor = rarityColor,
+                    dist = dist,
+                    weightText = buildWeightText(id, eggName, petName),
+                    rank = RARITY_RANK[rarityLabel] or 0,
+                })
+            end
+        end
+    end
+    table.sort(rows, function(a, b)
+        if a.rank == b.rank then return a.dist < b.dist end
+        return a.rank > b.rank
+    end)
+    detectedPets = rows
+    return rows
+end
+
+local function pickHatchTarget()
+    local rows = collectPetDetections()
+    if automationSettings.hatchMode == "Target Rarity" then
+        for _, row in ipairs(rows) do
+            if rarityPass(row.rarityLabel, automationSettings.hatchTargetRarity) then return row end
+        end
+        return nil
+    end
+    local best = nil
+    for id, object in pairs(activeEggs) do
+        if object and object:IsDescendantOf(workspace) then
+            local eggName = tostring(object:GetAttribute("EggName") or "?")
+            local petName = tostring((eggPets and eggPets[id]) or "?")
+            local rarityLabel, rarityColor = getRarityLabel(eggName, petName)
+            local row = { id = id, object = object, eggName = eggName, petName = petName, rarityLabel = rarityLabel, rarityColor = rarityColor, dist = getEggDistance(object) }
+            if not best or row.dist < best.dist then best = row end
+        end
+    end
+    return best
+end
+
+local function buildHatchArg(row)
+    if not row then return nil end
+    if automationSettings.hatchArgMode == "Egg Name" then return row.eggName end
+    if automationSettings.hatchArgMode == "Pet Name" then return row.petName end
+    if automationSettings.hatchArgMode == "Instance" then return row.object end
+    return row.id
+end
+
+local function callHatchRemote(row)
+    local remote, msg = resolveRemote(automationSettings.hatchRemotePath)
+    if not remote then return false, msg end
+    local arg = buildHatchArg(row)
+    local ok, err = pcall(function()
+        if remote:IsA("RemoteFunction") then
+            if arg ~= nil then remote:InvokeServer(arg) else remote:InvokeServer() end
+        else
+            if arg ~= nil then remote:FireServer(arg) else remote:FireServer() end
+        end
+    end)
+    if not ok then return false, tostring(err) end
+    return true, "Hatch fired"
+end
+
+local function autoDetectHatchRemotePath()
+    local remote = findRemoteByKeywords({"hatch"}) or findRemoteByKeywords({"egg"})
+    return getRemotePathFromReplicatedStorage(remote)
+end
+
 -- Drawing helpers
 local function newText(size, color)
     local t = Drawing.new("Text")
@@ -720,7 +859,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1"
+VerLbl.Text = "v4.2"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1981,6 +2120,344 @@ task.spawn(function()
     end
 end)
 
+sectionLbl(PESP, "PET DETECTOR")
+
+local PetDetectorCard = Instance.new("Frame")
+PetDetectorCard.Size = UDim2.new(1, 0, 0, 228)
+PetDetectorCard.BackgroundColor3 = C.surface
+PetDetectorCard.BorderSizePixel = 0
+PetDetectorCard.ZIndex = 104
+PetDetectorCard.Parent = PESP
+corner(PetDetectorCard, 8)
+stroke(PetDetectorCard, C.border, 1, 0)
+pad(PetDetectorCard, 6, 6, 6, 6)
+
+local PetDetectorLayout = Instance.new("UIListLayout")
+PetDetectorLayout.FillDirection = Enum.FillDirection.Vertical
+PetDetectorLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PetDetectorLayout.Padding = UDim.new(0, 5)
+PetDetectorLayout.Parent = PetDetectorCard
+
+local PetSearchBox = Instance.new("TextBox")
+PetSearchBox.Size = UDim2.new(1, 0, 0, 28)
+PetSearchBox.BackgroundColor3 = C.card
+PetSearchBox.BorderSizePixel = 0
+PetSearchBox.PlaceholderText = "Detector search pet / egg..."
+PetSearchBox.PlaceholderColor3 = C.textFaint
+PetSearchBox.Text = ""
+PetSearchBox.TextColor3 = C.text
+PetSearchBox.TextSize = 10
+PetSearchBox.Font = Enum.Font.Code
+PetSearchBox.TextXAlignment = Enum.TextXAlignment.Left
+PetSearchBox.ClearTextOnFocus = false
+PetSearchBox.ZIndex = 105
+PetSearchBox.Parent = PetDetectorCard
+corner(PetSearchBox, 7)
+stroke(PetSearchBox, C.border, 1, 0)
+pad(PetSearchBox, 8, 8, 0, 0)
+
+local PetDetectorTopRow = Instance.new("Frame")
+PetDetectorTopRow.Size = UDim2.new(1, 0, 0, 28)
+PetDetectorTopRow.BackgroundTransparency = 1
+PetDetectorTopRow.ZIndex = 105
+PetDetectorTopRow.Parent = PetDetectorCard
+local PDTopLayout = Instance.new("UIListLayout")
+PDTopLayout.FillDirection = Enum.FillDirection.Horizontal
+PDTopLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PDTopLayout.Padding = UDim.new(0, 6)
+PDTopLayout.Parent = PetDetectorTopRow
+
+local PetMinBtn = smallBtn(PetDetectorTopRow, "Min: Rare", 92)
+local PetScanBtn = smallBtn(PetDetectorTopRow, "Scan Pets", 86)
+local PetCopyBtn = smallBtn(PetDetectorTopRow, "Copy Pets", 86)
+local PetAlertBtn = smallBtn(PetDetectorTopRow, "New Only", 78)
+
+local PetListScroll = Instance.new("ScrollingFrame")
+PetListScroll.Size = UDim2.new(1, 0, 0, 156)
+PetListScroll.BackgroundColor3 = C.card
+PetListScroll.BorderSizePixel = 0
+PetListScroll.ScrollBarThickness = 3
+PetListScroll.ScrollBarImageColor3 = C.purple
+PetListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+PetListScroll.ZIndex = 105
+PetListScroll.Parent = PetDetectorCard
+corner(PetListScroll, 7)
+stroke(PetListScroll, C.border, 1, 0)
+pad(PetListScroll, 5, 5, 4, 4)
+local PetListLayout = Instance.new("UIListLayout")
+PetListLayout.FillDirection = Enum.FillDirection.Vertical
+PetListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PetListLayout.Padding = UDim.new(0, 2)
+PetListLayout.Parent = PetListScroll
+
+local PetEmptyLbl = Instance.new("TextLabel")
+PetEmptyLbl.Size = UDim2.new(1, 0, 0, 34)
+PetEmptyLbl.BackgroundTransparency = 1
+PetEmptyLbl.Text = "Enable ESP first, then scan detector"
+PetEmptyLbl.TextColor3 = C.textFaint
+PetEmptyLbl.TextSize = 10
+PetEmptyLbl.Font = Enum.Font.Gotham
+PetEmptyLbl.ZIndex = 106
+PetEmptyLbl.Parent = PetListScroll
+
+local function rebuildPetDetectorList()
+    for _, c in ipairs(PetListScroll:GetChildren()) do
+        if c:IsA("TextButton") or c:IsA("Frame") then c:Destroy() end
+    end
+    local rows = collectPetDetections()
+    for i, data in ipairs(rows) do
+        local key = data.id .. ":" .. data.petName
+        if not detectedPetSeen[key] then
+            detectedPetSeen[key] = true
+            pushLog("PET", data.rarityLabel .. " detected: " .. data.petName .. " / " .. data.eggName, data.rarityColor)
+        end
+        local row = Instance.new("TextButton")
+        row.Size = UDim2.new(1, 0, 0, 38)
+        row.BackgroundColor3 = C.surface
+        row.BorderSizePixel = 0
+        row.Text = ""
+        row.ZIndex = 106
+        row.LayoutOrder = i
+        row.Parent = PetListScroll
+        corner(row, 6)
+        local nameL = Instance.new("TextLabel")
+        nameL.Size = UDim2.new(1, -95, 0, 16)
+        nameL.Position = UDim2.new(0, 8, 0, 4)
+        nameL.BackgroundTransparency = 1
+        nameL.Text = data.petName
+        nameL.TextColor3 = data.rarityColor
+        nameL.TextSize = 11
+        nameL.Font = Enum.Font.GothamBold
+        nameL.TextXAlignment = Enum.TextXAlignment.Left
+        nameL.TextTruncate = Enum.TextTruncate.AtEnd
+        nameL.ZIndex = 107
+        nameL.Parent = row
+        local subL = Instance.new("TextLabel")
+        subL.Size = UDim2.new(1, -95, 0, 12)
+        subL.Position = UDim2.new(0, 8, 0, 21)
+        subL.BackgroundTransparency = 1
+        subL.Text = data.eggName .. " | " .. data.rarityLabel .. " | " .. data.weightText
+        subL.TextColor3 = C.textDim
+        subL.TextSize = 8
+        subL.Font = Enum.Font.Gotham
+        subL.TextXAlignment = Enum.TextXAlignment.Left
+        subL.ZIndex = 107
+        subL.Parent = row
+        local distL = Instance.new("TextLabel")
+        distL.Size = UDim2.new(0, 80, 1, 0)
+        distL.Position = UDim2.new(1, -86, 0, 0)
+        distL.BackgroundTransparency = 1
+        distL.Text = data.dist .. "m TP"
+        distL.TextColor3 = C.textFaint
+        distL.TextSize = 9
+        distL.Font = Enum.Font.GothamBold
+        distL.TextXAlignment = Enum.TextXAlignment.Right
+        distL.ZIndex = 107
+        distL.Parent = row
+        row.MouseButton1Click:Connect(function()
+            local ok, msg = teleportToPos(data.object:GetPivot().Position)
+            setStatus(ok and ("Pet detector TP: " .. data.petName) or msg, ok and C.purple or C.red)
+        end)
+    end
+    PetEmptyLbl.Visible = (#rows == 0)
+    PetEmptyLbl.Text = espEnabled and "No pets match detector filter" or "Enable ESP first, then scan detector"
+    PetListScroll.CanvasSize = UDim2.new(0, 0, 0, PetListLayout.AbsoluteContentSize.Y + 8)
+end
+
+PetSearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    automationSettings.petSearchText = PetSearchBox.Text:lower()
+    rebuildPetDetectorList()
+end)
+PetMinBtn.MouseButton1Click:Connect(function()
+    local vals = {"All", "Common", "Rare", "Epic", "Legendary"}
+    local idx = 1
+    for i, v in ipairs(vals) do if automationSettings.petMinRarity == v then idx = i break end end
+    automationSettings.petMinRarity = vals[(idx % #vals) + 1]
+    PetMinBtn.Text = "Min: " .. automationSettings.petMinRarity
+    rebuildPetDetectorList()
+end)
+PetAlertBtn.MouseButton1Click:Connect(function()
+    automationSettings.petAlertOnlyNew = not automationSettings.petAlertOnlyNew
+    PetAlertBtn.Text = automationSettings.petAlertOnlyNew and "New Only" or "Log All"
+    if not automationSettings.petAlertOnlyNew then detectedPetSeen = {} end
+end)
+PetScanBtn.MouseButton1Click:Connect(function()
+    if espEnabled then
+        for _, obj in ipairs(CollectionService:GetTagged("PetEggServer")) do task.spawn(addEsp, obj) end
+    end
+    rebuildPetDetectorList()
+    setStatus("Pet detector scanned", C.purple)
+end)
+PetCopyBtn.MouseButton1Click:Connect(function()
+    local rows = collectPetDetections()
+    local lines = {}
+    for _, data in ipairs(rows) do
+        table.insert(lines, string.format("%s | %s | %s | %s | %dm", data.petName, data.eggName, data.rarityLabel, data.weightText, data.dist))
+    end
+    pcall(function() setclipboard(table.concat(lines, "\n")) end)
+    setStatus("Copied pet detector list", C.purple)
+end)
+table.insert(espListCallbacks, rebuildPetDetectorList)
+
+sectionLbl(PESP, "AUTO HATCH DEV")
+
+local HatchCard = Instance.new("Frame")
+HatchCard.Size = UDim2.new(1, 0, 0, 176)
+HatchCard.BackgroundColor3 = C.surface
+HatchCard.BorderSizePixel = 0
+HatchCard.ZIndex = 104
+HatchCard.Parent = PESP
+corner(HatchCard, 8)
+stroke(HatchCard, C.border, 1, 0)
+pad(HatchCard, 6, 6, 6, 6)
+local HatchLayout = Instance.new("UIListLayout")
+HatchLayout.FillDirection = Enum.FillDirection.Vertical
+HatchLayout.SortOrder = Enum.SortOrder.LayoutOrder
+HatchLayout.Padding = UDim.new(0, 6)
+HatchLayout.Parent = HatchCard
+
+local HatchPathBox = Instance.new("TextBox")
+HatchPathBox.Size = UDim2.new(1, 0, 0, 28)
+HatchPathBox.BackgroundColor3 = C.card
+HatchPathBox.BorderSizePixel = 0
+HatchPathBox.PlaceholderText = "Hatch remote path, e.g. GameEvents.HatchEgg"
+HatchPathBox.PlaceholderColor3 = C.textFaint
+HatchPathBox.Text = automationSettings.hatchRemotePath
+HatchPathBox.TextColor3 = C.text
+HatchPathBox.TextSize = 10
+HatchPathBox.Font = Enum.Font.Code
+HatchPathBox.TextXAlignment = Enum.TextXAlignment.Left
+HatchPathBox.ClearTextOnFocus = false
+HatchPathBox.ZIndex = 105
+HatchPathBox.Parent = HatchCard
+corner(HatchPathBox, 7)
+stroke(HatchPathBox, C.border, 1, 0)
+pad(HatchPathBox, 8, 8, 0, 0)
+HatchPathBox:GetPropertyChangedSignal("Text"):Connect(function()
+    automationSettings.hatchRemotePath = HatchPathBox.Text
+end)
+
+local HatchRow1 = Instance.new("Frame")
+HatchRow1.Size = UDim2.new(1, 0, 0, 28)
+HatchRow1.BackgroundTransparency = 1
+HatchRow1.ZIndex = 105
+HatchRow1.Parent = HatchCard
+local HatchRow1Layout = Instance.new("UIListLayout")
+HatchRow1Layout.FillDirection = Enum.FillDirection.Horizontal
+HatchRow1Layout.SortOrder = Enum.SortOrder.LayoutOrder
+HatchRow1Layout.Padding = UDim.new(0, 6)
+HatchRow1Layout.Parent = HatchRow1
+local HatchDetectBtn = smallBtn(HatchRow1, "Auto Detect", 92)
+local HatchDumpBtn = smallBtn(HatchRow1, "Dump Cmd", 82)
+local HatchArgBtn = smallBtn(HatchRow1, "Arg: UUID", 90)
+local HatchModeBtn = smallBtn(HatchRow1, "Nearest", 78)
+
+local HatchRow2 = Instance.new("Frame")
+HatchRow2.Size = UDim2.new(1, 0, 0, 28)
+HatchRow2.BackgroundTransparency = 1
+HatchRow2.ZIndex = 105
+HatchRow2.Parent = HatchCard
+local HatchRow2Layout = Instance.new("UIListLayout")
+HatchRow2Layout.FillDirection = Enum.FillDirection.Horizontal
+HatchRow2Layout.SortOrder = Enum.SortOrder.LayoutOrder
+HatchRow2Layout.Padding = UDim.new(0, 6)
+HatchRow2Layout.Parent = HatchRow2
+local HatchOnceBtn = smallBtn(HatchRow2, "Hatch Once", 92, C.purple)
+local HatchAutoBtn = smallBtn(HatchRow2, "Auto: OFF", 88, C.surface)
+local HatchDelayBtn = smallBtn(HatchRow2, "Delay: 2.5", 88)
+local HatchTargetBtn = smallBtn(HatchRow2, "Target: Leg", 92)
+
+local HatchInfo = Instance.new("TextLabel")
+HatchInfo.Size = UDim2.new(1, 0, 0, 42)
+HatchInfo.BackgroundColor3 = C.card
+HatchInfo.BorderSizePixel = 0
+HatchInfo.Text = "Auto hatch uses selected remote path. Use Dump Cmd if auto-detect fails."
+HatchInfo.TextColor3 = C.textDim
+HatchInfo.TextSize = 9
+HatchInfo.Font = Enum.Font.Gotham
+HatchInfo.TextWrapped = true
+HatchInfo.ZIndex = 105
+HatchInfo.Parent = HatchCard
+corner(HatchInfo, 7)
+stroke(HatchInfo, C.border, 1, 0)
+
+local function runHatchOnce()
+    local target = pickHatchTarget()
+    if not target then
+        setStatus("No hatch target found", C.yellow)
+        return false
+    end
+    local ok, msg = callHatchRemote(target)
+    setStatus(ok and ("Hatch fired: " .. target.eggName) or ("Hatch failed: " .. msg), ok and C.purple or C.red)
+    pushLog(ok and "HATCH" or "ERR", (ok and "Hatch " or "Hatch failed ") .. target.eggName .. " / " .. target.petName .. " | " .. msg, ok and C.purple or C.red)
+    return ok
+end
+
+HatchDetectBtn.MouseButton1Click:Connect(function()
+    local path = autoDetectHatchRemotePath()
+    if path ~= "" then
+        HatchPathBox.Text = path
+        automationSettings.hatchRemotePath = path
+        setStatus("Hatch remote detected: " .. path, C.purple)
+    else
+        setStatus("No hatch remote found; use Dump Cmd", C.yellow)
+    end
+end)
+HatchDumpBtn.MouseButton1Click:Connect(function()
+    local cmd = [[-- Dump remotes hatch/egg
+for _, v in ipairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+    if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+        local n = v.Name:lower()
+        if n:find("hatch") or n:find("egg") or n:find("pet") then
+            print(v.ClassName, v:GetFullName())
+        end
+    end
+end]]
+    pcall(function() setclipboard(cmd) end)
+    pushLog("HATCH", "Dump command copied to clipboard", C.purple)
+    setStatus("Dump command copied", C.purple)
+end)
+HatchArgBtn.MouseButton1Click:Connect(function()
+    local vals = {"Object UUID", "Egg Name", "Pet Name", "Instance"}
+    local idx = 1
+    for i, v in ipairs(vals) do if automationSettings.hatchArgMode == v then idx = i break end end
+    automationSettings.hatchArgMode = vals[(idx % #vals) + 1]
+    HatchArgBtn.Text = "Arg: " .. (automationSettings.hatchArgMode == "Object UUID" and "UUID" or automationSettings.hatchArgMode)
+end)
+HatchModeBtn.MouseButton1Click:Connect(function()
+    automationSettings.hatchMode = automationSettings.hatchMode == "Nearest Egg" and "Target Rarity" or "Nearest Egg"
+    HatchModeBtn.Text = automationSettings.hatchMode == "Nearest Egg" and "Nearest" or "Target"
+end)
+HatchDelayBtn.MouseButton1Click:Connect(function()
+    local vals = {1.5, 2.5, 4, 6}
+    local idx = 1
+    for i, v in ipairs(vals) do if automationSettings.hatchDelay == v then idx = i break end end
+    automationSettings.hatchDelay = vals[(idx % #vals) + 1]
+    HatchDelayBtn.Text = "Delay: " .. tostring(automationSettings.hatchDelay)
+end)
+HatchTargetBtn.MouseButton1Click:Connect(function()
+    local vals = {"Rare", "Epic", "Legendary", "All"}
+    local idx = 1
+    for i, v in ipairs(vals) do if automationSettings.hatchTargetRarity == v then idx = i break end end
+    automationSettings.hatchTargetRarity = vals[(idx % #vals) + 1]
+    HatchTargetBtn.Text = "Target: " .. automationSettings.hatchTargetRarity
+end)
+HatchOnceBtn.MouseButton1Click:Connect(runHatchOnce)
+HatchAutoBtn.MouseButton1Click:Connect(function()
+    automationSettings.autoHatchEnabled = not automationSettings.autoHatchEnabled
+    HatchAutoBtn.Text = automationSettings.autoHatchEnabled and "Auto: ON" or "Auto: OFF"
+    HatchAutoBtn.BackgroundColor3 = automationSettings.autoHatchEnabled and C.purple or C.surface
+    if automationSettings.autoHatchEnabled and not autoHatchThread then
+        autoHatchThread = task.spawn(function()
+            while automationSettings.autoHatchEnabled do
+                pcall(runHatchOnce)
+                task.wait(automationSettings.hatchDelay)
+            end
+            autoHatchThread = nil
+        end)
+    end
+end)
+
 -- ============================================================
 -- PANEL: COMING SOON
 -- ============================================================
@@ -2135,7 +2612,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.2 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1 initialized")
+print("[LowHub] v4.2 initialized")
