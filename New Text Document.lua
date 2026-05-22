@@ -1,4 +1,4 @@
--- LOW HUB v4.1.17 - Grow a Garden
+-- LOW HUB v4.1.18 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.17 boot"
+BootBtn.Text = "LowHub v4.1.18 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.17 start")
+bootStatus("LowHub v4.1.18 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.17"
+VerLbl.Text = "v4.1.18"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -2024,7 +2024,7 @@ ColorModeBtn.MouseButton1Click:Connect(function()
     ColorModeBtn.Text = "Color: " .. espSettings.colorMode
     setStatus("ESP color mode: " .. espSettings.colorMode, C.purple)
 end)
-local SizeBtn = smallBtn(ModeRow, "Size: 1x", 82)
+SizeBtn = smallBtn(ModeRow, "Size: 1x", 82)
 SizeBtn.MouseButton1Click:Connect(function()
     local vals = {1, 1.25, 1.5, 0.75}
     local idx = 1
@@ -2032,7 +2032,7 @@ SizeBtn.MouseButton1Click:Connect(function()
     espSettings.boxScale = vals[(idx % #vals) + 1]
     SizeBtn.Text = "Size: " .. tostring(espSettings.boxScale) .. "x"
 end)
-local SortBtn = smallBtn(ModeRow, "Sort: Distance", 116)
+SortBtn = smallBtn(ModeRow, "Sort: Distance", 116)
 SortBtn.MouseButton1Click:Connect(function()
     local vals = {"Distance", "Rarity", "Weight"}
     local idx = 1
@@ -2041,7 +2041,7 @@ SortBtn.MouseButton1Click:Connect(function()
     SortBtn.Text = "Sort: " .. espSettings.sortMode
     if rebuildEggList then rebuildEggList() end
 end)
-local MaxDistBtn = smallBtn(ModeRow, "Max: INF", 70)
+MaxDistBtn = smallBtn(ModeRow, "Max: INF", 70)
 MaxDistBtn.MouseButton1Click:Connect(function()
     local vals = {0, 50, 100, 250, 500}
     local idx = 1
@@ -2054,7 +2054,7 @@ end)
 -- Section: Active List
 sectionLbl(PESP, "ACTIVE EGG LIST")
 
-local EggListFrame = Instance.new("Frame")
+EggListFrame = Instance.new("Frame")
 EggListFrame.Size = UDim2.new(1, 0, 0, 200)
 EggListFrame.BackgroundColor3 = C.surface
 EggListFrame.BorderSizePixel = 0
@@ -2063,7 +2063,7 @@ EggListFrame.Parent = PESP
 corner(EggListFrame, 8)
 stroke(EggListFrame, C.border, 1, 0)
 
-local EggListScroll = Instance.new("ScrollingFrame")
+EggListScroll = Instance.new("ScrollingFrame")
 EggListScroll.Size = UDim2.new(1, -2, 1, -2)
 EggListScroll.Position = UDim2.new(0, 1, 0, 1)
 EggListScroll.BackgroundTransparency = 1
@@ -2073,7 +2073,7 @@ EggListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 EggListScroll.ZIndex = 105
 EggListScroll.Parent = EggListFrame
 
-local EggListLayout = Instance.new("UIListLayout")
+EggListLayout = Instance.new("UIListLayout")
 EggListLayout.FillDirection = Enum.FillDirection.Vertical
 EggListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 EggListLayout.Padding = UDim.new(0, 2)
@@ -2081,7 +2081,7 @@ EggListLayout.Parent = EggListScroll
 pad(EggListScroll, 6, 6, 4, 4)
 
 -- Empty state label
-local EmptyLbl = Instance.new("TextLabel")
+EmptyLbl = Instance.new("TextLabel")
 EmptyLbl.Size = UDim2.new(1, 0, 0, 40)
 EmptyLbl.BackgroundTransparency = 1
 EmptyLbl.Text = "No active eggs - enable ESP first"
@@ -2224,7 +2224,7 @@ end
 table.insert(espListCallbacks, rebuildEggList)
 
 -- Also track totalSeen
-local _origAddEsp = addEsp
+_origAddEsp = addEsp
 addEsp = function(object)
     _origAddEsp(object)
     local id = object:GetAttribute("OBJECT_UUID")
@@ -2234,20 +2234,20 @@ addEsp = function(object)
     end
 end
 
-local EspActionRow = Instance.new("Frame")
+EspActionRow = Instance.new("Frame")
 EspActionRow.Size = UDim2.new(1, 0, 0, 28)
 EspActionRow.BackgroundTransparency = 1
 EspActionRow.ZIndex = 104
 EspActionRow.Parent = PESP
-local EARLayout = Instance.new("UIListLayout")
+EARLayout = Instance.new("UIListLayout")
 EARLayout.FillDirection = Enum.FillDirection.Horizontal
 EARLayout.SortOrder = Enum.SortOrder.LayoutOrder
 EARLayout.Padding = UDim.new(0, 6)
 EARLayout.Parent = EspActionRow
 
-local RefreshBtn = smallBtn(EspActionRow, "R Refresh", 84)
-local RescanBtn = smallBtn(EspActionRow, "Scan Eggs", 86)
-local CopyEggBtn = smallBtn(EspActionRow, "Copy List", 84)
+RefreshBtn = smallBtn(EspActionRow, "R Refresh", 84)
+RescanBtn = smallBtn(EspActionRow, "Scan Eggs", 86)
+CopyEggBtn = smallBtn(EspActionRow, "Copy List", 84)
 
 RefreshBtn.MouseButton1Click:Connect(function()
     if rebuildEggList then rebuildEggList() end
@@ -2291,7 +2291,7 @@ bootStatus("LowHub ready")
 -- ============================================================
 -- MINIMIZE / CLOSE / DRAG
 -- ============================================================
-local MinIcon = Instance.new("TextButton")
+MinIcon = Instance.new("TextButton")
 MinIcon.Size = UDim2.new(0, 48, 0, 48)
 MinIcon.Position = UDim2.new(0, 16, 0.5, -24)
 MinIcon.BackgroundColor3 = C.green
@@ -2306,14 +2306,14 @@ MinIcon.ZIndex = 2000
 MinIcon.Parent = Gui
 corner(MinIcon, 10)
 
-local FallbackBtn
+FallbackBtn = nil
 if FallbackGui then
     FallbackBtn = Instance.new("TextButton")
     FallbackBtn.Size = UDim2.new(0, 118, 0, 34)
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.17"
+    FallbackBtn.Text = "LowHub v4.1.18"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2380,7 +2380,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.17 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.18 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.17 initialized")
+print("[LowHub] v4.1.18 initialized")
