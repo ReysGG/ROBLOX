@@ -1471,6 +1471,9 @@ stroke(SellInvBtn, C.greenMid, 1, 0.2)
 local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
 
 local function sellInventoryOnce()
+    setStatus("Moving to Sell Stands...", C.yellow)
+    pcall(function() teleportToNPC("Sell Stands") end)
+    task.wait(0.8)
     local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
     ResultLbl.Text = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
     ResultLbl.TextColor3 = ok and C.green or C.red
