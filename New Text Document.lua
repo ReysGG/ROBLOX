@@ -1,4 +1,4 @@
--- LOW HUB v4.1.14 - Grow a Garden
+-- LOW HUB v4.1.15 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -755,7 +755,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.14"
+VerLbl.Text = "v4.1.15"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -2243,15 +2243,6 @@ CopyEggBtn.MouseButton1Click:Connect(function()
     setStatus("Copied egg list", C.purple)
 end)
 
--- Auto-refresh list every 2s when ESP active
-task.spawn(function()
-    while true do
-        task.wait(2)
-        if espEnabled then
-            pcall(rebuildEggList)
-        end
-    end
-end)
 
 -- ============================================================
 -- PANEL: COMING SOON
@@ -2370,7 +2361,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.14"
+    FallbackBtn.Text = "LowHub v4.1.15"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2432,7 +2423,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.14 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.15 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.14 initialized")
+print("[LowHub] v4.1.15 initialized")
