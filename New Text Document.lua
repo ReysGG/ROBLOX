@@ -1,4 +1,4 @@
--- LOW HUB v4.1.12 — Grow a Garden
+-- LOW HUB v4.1.13 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -43,7 +43,7 @@ local DESTINATIONS = {
         id        = "honey_seed",
         label     = "Honey Seed Shop",
         sub       = "Event Shop",
-        icon      = "🍯",
+        icon      = "H",
         npcName   = "HoneySeedShop",
         pos       = nil,
         useRemote = true,
@@ -55,7 +55,7 @@ local DESTINATIONS = {
         id      = "seed_stands",
         label   = "Seed Stands",
         sub     = "Buy Seeds",
-        icon    = "🌱",
+        icon    = "S",
         npcName = "Seed Stands",
         pos     = Vector3.new(35.4, 3.0, -25.4),
         color   = Color3.fromRGB(80, 200, 80),
@@ -64,7 +64,7 @@ local DESTINATIONS = {
         id      = "sell_stands",
         label   = "Sell Stands",
         sub     = "Sell Harvest",
-        icon    = "💰",
+        icon    = "$",
         npcName = "Sell Stands",
         pos     = Vector3.new(40.4, 2.8, 0.4),
         color   = Color3.fromRGB(255, 210, 60),
@@ -73,7 +73,7 @@ local DESTINATIONS = {
         id      = "honey_hannah",
         label   = "Honey Hannah",
         sub     = "Special Shop",
-        icon    = "🧑",
+        icon    = "P",
         npcName = "Honey Hannah",
         pos     = Vector3.new(41.9, 3.0, -27.1),
         color   = Color3.fromRGB(255, 140, 80),
@@ -82,7 +82,7 @@ local DESTINATIONS = {
         id      = "pet_stand",
         label   = "Pet Stand",
         sub     = "Pets & Eggs",
-        icon    = "🐾",
+        icon    = "A",
         npcName = "Pet Stand",
         pos     = Vector3.new(-241.3, 5.0, 11.2),
         color   = Color3.fromRGB(160, 100, 255),
@@ -91,7 +91,7 @@ local DESTINATIONS = {
         id      = "gear_stands",
         label   = "Gear Stands",
         sub     = "Tools & Gear",
-        icon    = "⚙️",
+        icon    = "G",
         npcName = "Gear Stands",
         pos     = Vector3.new(-218.1, 4.4, -4.6),
         color   = Color3.fromRGB(120, 180, 255),
@@ -688,7 +688,7 @@ TopGlow.ZIndex = 101
 TopGlow.Parent = Win
 corner(TopGlow, 2)
 
--- ── HEADER ───────────────────────────────────────────────────
+-- HEADER
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 48)
 Header.BackgroundColor3 = C.header
@@ -749,7 +749,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.12"
+VerLbl.Text = "v4.1.13"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -773,9 +773,9 @@ local function hBtn(txt, xOff, bg)
     return b
 end
 local MinBtn   = hBtn("-", -72, C.greenMid)
-local CloseBtn = hBtn("✕", -38, C.red)
+local CloseBtn = hBtn("X", -38, C.red)
 
--- ── STATUS BAR ────────────────────────────────────────────────
+-- STATUS BAR
 local StatusBar = Instance.new("Frame")
 StatusBar.Size = UDim2.new(1, -16, 0, 28)
 StatusBar.Position = UDim2.new(0, 8, 0, 52)
@@ -814,7 +814,7 @@ local function setStatus(txt, col)
     SDot.BackgroundColor3 = col or C.green
 end
 
--- ── BODY ──────────────────────────────────────────────────────
+-- BODY
 local Body = Instance.new("Frame")
 Body.Size = UDim2.new(1, -16, 1, -96)
 Body.Position = UDim2.new(0, 8, 0, 88)
@@ -851,14 +851,14 @@ Content.BackgroundTransparency = 1
 Content.ZIndex = 102
 Content.Parent = Body
 
--- ── TABS ──────────────────────────────────────────────────────
+-- TABS
 local TABS = {
-    { id = "farm",     icon = "✦",  label = "FARM" },
-    { id = "teleport", icon = "⊹",  label = "TP"  },
-    { id = "console",  icon = "≡",  label = "LOG" },
-    { id = "esp",      icon = "◉",  label = "ESP" },
-    { id = "builder",  icon = "◈",  label = "BLD" },
-    { id = "soon",     icon = "◌",  label = "···" },
+    { id = "farm",     icon = "F",  label = "FARM" },
+    { id = "teleport", icon = "T",  label = "TP"  },
+    { id = "console",  icon = "L",  label = "LOG" },
+    { id = "esp",      icon = "E",  label = "ESP" },
+    { id = "builder",  icon = "B",  label = "BLD" },
+    { id = "soon",     icon = "S",  label = "..." },
 }
 
 local tabBtns = {}
@@ -1101,13 +1101,13 @@ for i, dest in ipairs(DESTINATIONS) do
         task.spawn(function()
             local ok, msg = doTeleport(dest)
             if ok then
-                setStatus("✓ " .. dest.label .. " — " .. msg, C.green)
+                setStatus("OK " .. dest.label .. " - " .. msg, C.green)
                 statDot.BackgroundColor3 = C.green
-                pushLog("TP", dest.label .. " → " .. msg, C.green)
+                pushLog("TP", dest.label .. " -> " .. msg, C.green)
             else
-                setStatus("✕ " .. msg, C.red)
+                setStatus("X " .. msg, C.red)
                 statDot.BackgroundColor3 = C.red
-                pushLog("ERR", dest.label .. " → " .. msg, C.red)
+                pushLog("ERR", dest.label .. " -> " .. msg, C.red)
             end
         end)
     end)
@@ -1134,11 +1134,11 @@ QLayout.SortOrder = Enum.SortOrder.LayoutOrder
 QLayout.Padding = UDim.new(0, 6)
 QLayout.Parent = QRow
 
-local PosQBtn = actionBtn(QRow, "⊹ Position", C.surface, 30)
+local PosQBtn = actionBtn(QRow, "T Position", C.surface, 30)
 PosQBtn.Size = UDim2.new(0, 100, 1, 0)
 PosQBtn.LayoutOrder = 1
 
-local OpenSeedShopBtn = actionBtn(QRow, "🍯 Open UI", C.surface, 30)
+local OpenSeedShopBtn = actionBtn(QRow, "H Open UI", C.surface, 30)
 OpenSeedShopBtn.Size = UDim2.new(0, 90, 1, 0)
 OpenSeedShopBtn.LayoutOrder = 2
 
@@ -1155,7 +1155,7 @@ OpenSeedShopBtn.MouseButton1Click:Connect(function()
     setStatus("Opening Honey Seed Shop UI...", C.yellow)
     task.spawn(function()
         local ok, msg = openShopUI("Honey Seed Shop")
-        setStatus(ok and "✓ Shop opened" or "✕ " .. msg, ok and C.green or C.red)
+        setStatus(ok and "OK Shop opened" or "X " .. msg, ok and C.green or C.red)
     end)
 end)
 
@@ -1238,11 +1238,11 @@ CTLayout.SortOrder = Enum.SortOrder.LayoutOrder
 CTLayout.Padding = UDim.new(0, 6)
 CTLayout.Parent = ConToolbar
 
-local CopyBtn = actionBtn(ConToolbar, "⎘ Copy All", C.surface, 28)
+local CopyBtn = actionBtn(ConToolbar, "COPY Copy All", C.surface, 28)
 CopyBtn.Size = UDim2.new(0, 100, 1, 0)
 CopyBtn.LayoutOrder = 1
 
-local ClearLogBtn = actionBtn(ConToolbar, "✕ Clear", C.redDark, 28)
+local ClearLogBtn = actionBtn(ConToolbar, "X Clear", C.redDark, 28)
 ClearLogBtn.Size = UDim2.new(0, 80, 1, 0)
 ClearLogBtn.LayoutOrder = 2
 
@@ -1279,12 +1279,12 @@ ETLayout.SortOrder = Enum.SortOrder.LayoutOrder
 ETLayout.Padding = UDim.new(0, 6)
 ETLayout.Parent = ExecToolbar
 
-local RunBtn = actionBtn(ExecToolbar, "▶ Run", C.greenDark, 28)
+local RunBtn = actionBtn(ExecToolbar, "> Run", C.greenDark, 28)
 RunBtn.Size = UDim2.new(0, 80, 1, 0)
 RunBtn.LayoutOrder = 1
 stroke(RunBtn, C.greenMid, 1, 0.2)
 
-local ClearExecBtn = actionBtn(ExecToolbar, "✕ Clear", C.redDark, 28)
+local ClearExecBtn = actionBtn(ExecToolbar, "X Clear", C.redDark, 28)
 ClearExecBtn.Size = UDim2.new(0, 80, 1, 0)
 ClearExecBtn.LayoutOrder = 2
 
@@ -1348,7 +1348,7 @@ RunBtn.MouseButton1Click:Connect(function()
             pushLog("ERR", "Runtime: " .. tostring(runErr), C.red)
             setStatus("Runtime error", C.red)
         else
-            pushLog("SYS", "Done ✓", C.green)
+            pushLog("SYS", "Done OK", C.green)
             setStatus("Script done", C.green)
         end
     end)
@@ -1522,9 +1522,9 @@ local function fieldGroup(parent, labelTxt, placeholder, defaultVal)
 end
 
 local _, PathBox = fieldGroup(PBL, "REMOTE PATH (from ReplicatedStorage)", "GameEvents.SomethingHere", "GameEvents.PlayerTeleportTriggered")
-local _, ArgBox  = fieldGroup(PBL, "ARGUMENT (string — leave blank for none)", "Seed Shop", "Seed Shop")
+local _, ArgBox  = fieldGroup(PBL, "ARGUMENT (string - leave blank for none)", "Seed Shop", "Seed Shop")
 
-local FireBuildBtn = actionBtn(PBL, "▶  Fire Remote", C.greenDark, 36)
+local FireBuildBtn = actionBtn(PBL, ">  Fire Remote", C.greenDark, 36)
 stroke(FireBuildBtn, C.greenMid, 1, 0.2)
 
 local ResultCard = Instance.new("Frame")
@@ -1575,7 +1575,7 @@ FireBuildBtn.MouseButton1Click:Connect(function()
     local path = PathBox.Text
     local arg  = ArgBox.Text
     if path == "" then
-        ResultLbl.Text = "⚠ Path cannot be empty"
+        ResultLbl.Text = "WARN Path cannot be empty"
         ResultLbl.TextColor3 = C.red
         return
     end
@@ -1583,7 +1583,7 @@ FireBuildBtn.MouseButton1Click:Connect(function()
     ResultLbl.TextColor3 = C.yellow
     task.spawn(function()
         local ok, msg = fireRemote(path, arg)
-        local display = (ok and "✓ " or "✕ ") .. msg
+        local display = (ok and "OK " or "X ") .. msg
         ResultLbl.Text = display
         ResultLbl.TextColor3 = ok and C.green or C.red
         setStatus(display, ok and C.green or C.red)
@@ -1648,7 +1648,7 @@ local function sellInventoryOnce()
     local resultText = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
     FarmStatusLbl.Text = "Sell | " .. resultText
     setStatus(resultText, ok and C.green or C.red)
-    pushLog(ok and "FARM" or "ERR", "Sell_Inventory → " .. msg, ok and C.green or C.red)
+    pushLog(ok and "FARM" or "ERR", "Sell_Inventory -> " .. msg, ok and C.green or C.red)
     return ok
 end
 
@@ -1733,7 +1733,7 @@ EspIconLbl.Size = UDim2.new(0, 32, 0, 32)
 EspIconLbl.Position = UDim2.new(0, 14, 0.5, -16)
 EspIconLbl.BackgroundColor3 = lerpColor(C.purple, C.bg, 0.75)
 EspIconLbl.BorderSizePixel = 0
-EspIconLbl.Text = "◉"
+EspIconLbl.Text = "E"
 EspIconLbl.TextSize = 16
 EspIconLbl.Font = Enum.Font.GothamBold
 EspIconLbl.TextColor3 = C.purple
@@ -1807,7 +1807,7 @@ ToggleBtn.MouseButton1Click:Connect(function()
         pushLog("ESP", "Disabled", C.textDim)
     else
         enableEsp()
-        setStatus("ESP enabled — scanning eggs...", C.purple)
+        setStatus("ESP enabled - scanning eggs...", C.purple)
         pushLog("ESP", "Enabled", C.purple)
     end
     updateToggleUI()
@@ -2003,13 +2003,13 @@ SortBtn.MouseButton1Click:Connect(function()
     SortBtn.Text = "Sort: " .. espSettings.sortMode
     if rebuildEggList then rebuildEggList() end
 end)
-local MaxDistBtn = smallBtn(ModeRow, "Max: ∞", 70)
+local MaxDistBtn = smallBtn(ModeRow, "Max: INF", 70)
 MaxDistBtn.MouseButton1Click:Connect(function()
     local vals = {0, 50, 100, 250, 500}
     local idx = 1
     for i, v in ipairs(vals) do if espSettings.maxDistance == v then idx = i break end end
     espSettings.maxDistance = vals[(idx % #vals) + 1]
-    MaxDistBtn.Text = espSettings.maxDistance == 0 and "Max: ∞" or ("Max: " .. espSettings.maxDistance)
+    MaxDistBtn.Text = espSettings.maxDistance == 0 and "Max: INF" or ("Max: " .. espSettings.maxDistance)
     if rebuildEggList then rebuildEggList() end
 end)
 
@@ -2046,7 +2046,7 @@ pad(EggListScroll, 6, 6, 4, 4)
 local EmptyLbl = Instance.new("TextLabel")
 EmptyLbl.Size = UDim2.new(1, 0, 0, 40)
 EmptyLbl.BackgroundTransparency = 1
-EmptyLbl.Text = "No active eggs — enable ESP first"
+EmptyLbl.Text = "No active eggs - enable ESP first"
 EmptyLbl.TextColor3 = C.textFaint
 EmptyLbl.TextSize = 10
 EmptyLbl.Font = Enum.Font.Gotham
@@ -2137,7 +2137,7 @@ rebuildEggList = function()
         eggL.Size = UDim2.new(1, -142, 0, 12)
         eggL.Position = UDim2.new(0, 12, 0, 22)
         eggL.BackgroundTransparency = 1
-        eggL.Text = data.eggName .. "  •  " .. data.rarityLabel
+        eggL.Text = data.eggName .. "  -  " .. data.rarityLabel
         eggL.TextColor3 = C.textDim
         eggL.TextSize = 9
         eggL.Font = Enum.Font.Gotham
@@ -2161,7 +2161,7 @@ rebuildEggList = function()
         distL.Size = UDim2.new(0, 92, 0, 12)
         distL.Position = UDim2.new(1, -98, 0, 22)
         distL.BackgroundTransparency = 1
-        distL.Text = data.dist .. "m • tap TP"
+        distL.Text = data.dist .. "m - tap TP"
         distL.TextColor3 = C.textFaint
         distL.TextSize = 8
         distL.Font = Enum.Font.Gotham
@@ -2172,12 +2172,12 @@ rebuildEggList = function()
         row.MouseButton1Click:Connect(function()
             local ok, msg = teleportToPos(data.object:GetPivot().Position)
             setStatus(ok and ("Teleported to egg: " .. data.petName) or msg, ok and C.purple or C.red)
-            pushLog(ok and "ESP" or "ERR", "Egg TP → " .. data.petName .. " / " .. data.eggName, ok and C.purple or C.red)
+            pushLog(ok and "ESP" or "ERR", "Egg TP -> " .. data.petName .. " / " .. data.eggName, ok and C.purple or C.red)
         end)
     end
 
     EmptyLbl.Visible = (#rows == 0)
-    EmptyLbl.Text = espEnabled and "No eggs match current filters" or "No active eggs — enable ESP first"
+    EmptyLbl.Text = espEnabled and "No eggs match current filters" or "No active eggs - enable ESP first"
     ActiveCountLbl.Text = tostring(#rows)
     EggListScroll.CanvasSize = UDim2.new(0, 0, 0, EggListLayout.AbsoluteContentSize.Y + 8)
 end
@@ -2207,7 +2207,7 @@ EARLayout.SortOrder = Enum.SortOrder.LayoutOrder
 EARLayout.Padding = UDim.new(0, 6)
 EARLayout.Parent = EspActionRow
 
-local RefreshBtn = smallBtn(EspActionRow, "↺ Refresh", 84)
+local RefreshBtn = smallBtn(EspActionRow, "R Refresh", 84)
 local RescanBtn = smallBtn(EspActionRow, "Scan Eggs", 86)
 local CopyEggBtn = smallBtn(EspActionRow, "Copy List", 84)
 
@@ -2261,11 +2261,11 @@ pad(PSN, 2, 4, 4, 8)
 sectionLbl(PSN, "COMING SOON")
 
 local SOON_ITEMS = {
-    { icon = "🔁",  title = "Auto Farm",       desc = "Loop teleport + sell automatically" },
-    { icon = "📦",  title = "Inventory",        desc = "View & manage player inventory"     },
-    { icon = "🌐",  title = "Server Hop",       desc = "Find servers with specific items"   },
-    { icon = "📡",  title = "Remote Spy Lite",  desc = "Monitor incoming RemoteEvent calls" },
-    { icon = "🌧️", title = "Seed Rain Alert",  desc = "Notify on MythicalSeedRainEvent"    },
+    { icon = "AF", title = "Auto Farm",       desc = "Loop teleport + sell automatically" },
+    { icon = "IN", title = "Inventory",        desc = "View & manage player inventory"     },
+    { icon = "SH", title = "Server Hop",       desc = "Find servers with specific items"   },
+    { icon = "RS", title = "Remote Spy Lite",  desc = "Monitor incoming RemoteEvent calls" },
+    { icon = "SR", title = "Seed Rain Alert",  desc = "Notify on MythicalSeedRainEvent"    },
 }
 
 for _, item in ipairs(SOON_ITEMS) do
@@ -2364,7 +2364,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.12"
+    FallbackBtn.Text = "LowHub v4.1.13"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2426,7 +2426,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.12 loaded — Grow a Garden", C.green)
-pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
+pushLog("SYS", "LowHub v4.1.13 loaded - Grow a Garden", C.green)
+pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.12 initialized")
+print("[LowHub] v4.1.13 initialized")
