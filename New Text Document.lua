@@ -1,4 +1,4 @@
--- LOW HUB v4.1.7 — Grow a Garden
+-- LOW HUB v4.1.8 — Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -727,7 +727,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.7"
+VerLbl.Text = "v4.1.8"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -834,6 +834,7 @@ local TABS = {
     { id = "teleport", icon = "⊹",  label = "TP"  },
     { id = "console",  icon = "≡",  label = "LOG" },
     { id = "esp",      icon = "◉",  label = "ESP" },
+    { id = "farm",     icon = "✦",  label = "FARM" },
     { id = "builder",  icon = "◈",  label = "BLD" },
     { id = "soon",     icon = "◌",  label = "···" },
 }
@@ -1342,7 +1343,15 @@ PBLLayout.Padding = UDim.new(0, 8)
 PBLLayout.Parent = PBL
 pad(PBL, 2, 4, 4, 8)
 
-sectionLbl(PBL, "FARMER")
+local PFARM = makePanel("farm")
+local PFARMLayout = Instance.new("UIListLayout")
+PFARMLayout.FillDirection = Enum.FillDirection.Vertical
+PFARMLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PFARMLayout.Padding = UDim.new(0, 8)
+PFARMLayout.Parent = PFARM
+pad(PFARM, 2, 4, 4, 8)
+
+sectionLbl(PFARM, "FARM")
 
 local seedOptions = {
     "Carrot",
@@ -1371,13 +1380,13 @@ local autoBuyThread = nil
 local autoSellEnabled = false
 local autoSellThread = nil
 
-local SeedPickBtn = actionBtn(PBL, "Seed: Carrot", C.surface, 32)
-local BuySeedBtn = actionBtn(PBL, "Buy Selected Seed", C.greenDark, 32)
+local SeedPickBtn = actionBtn(PFARM, "Seed: Carrot", C.surface, 32)
+local BuySeedBtn = actionBtn(PFARM, "Buy Selected Seed", C.greenDark, 32)
 stroke(BuySeedBtn, C.greenMid, 1, 0.2)
-local AutoBuyBtn = actionBtn(PBL, "Auto Buy: OFF", C.surface, 32)
-local SellInvBtn = actionBtn(PBL, "Sell Inventory", C.greenDark, 32)
+local AutoBuyBtn = actionBtn(PFARM, "Auto Buy: OFF", C.surface, 32)
+local SellInvBtn = actionBtn(PFARM, "Sell Inventory", C.greenDark, 32)
 stroke(SellInvBtn, C.greenMid, 1, 0.2)
-local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
+local AutoSellBtn = actionBtn(PFARM, "Auto Sell: OFF", C.surface, 32)
 
 sectionLbl(PBL, "REMOTE FIRE BUILDER")
 
@@ -2300,7 +2309,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.7 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.8 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.7 initialized")
+print("[LowHub] v4.1.8 initialized")
