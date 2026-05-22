@@ -1,16 +1,18 @@
--- LOW HUB v3.0 — Grow a Garden
+-- LOW HUB v4.0 — Grow a Garden
 -- LocalScript | 1 file
--- Sections: TELEPORT | CONSOLE | BUILDER | COMING SOON
+-- Sections: TELEPORT | CONSOLE | BUILDER | EGG ESP | COMING SOON
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService  = game:GetService("UserInputService")
 local TweenService      = game:GetService("TweenService")
+local CollectionService = game:GetService("CollectionService")
+local RunService        = game:GetService("RunService")
 
 local Player    = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 
-local GUI_NAME = "LowHubV3"
+local GUI_NAME = "LowHubV4"
 
 -- cleanup
 local old = PlayerGui:FindFirstChild(GUI_NAME)
@@ -25,12 +27,12 @@ end)
 -- ============================================================
 local DESTINATIONS = {
     {
-        id       = "honey_seed",
-        label    = "Honey Seed Shop",
-        sub      = "Event Shop",
-        icon     = "🍯",
-        npcName  = "HoneySeedShop",
-        pos      = nil, -- from NPC pivot
+        id        = "honey_seed",
+        label     = "Honey Seed Shop",
+        sub       = "Event Shop",
+        icon      = "🍯",
+        npcName   = "HoneySeedShop",
+        pos       = nil,
         useRemote = true,
         remoteArg = "Seed Shop",
         shopName  = "Honey Seed Shop",
@@ -107,6 +109,8 @@ local C = {
     yellow    = Color3.fromRGB(255, 210, 60),
     blue      = Color3.fromRGB(80, 160, 255),
     white     = Color3.fromRGB(255, 255, 255),
+    purple    = Color3.fromRGB(160, 100, 255),
+    orange    = Color3.fromRGB(255, 140, 40),
 }
 
 -- ============================================================
@@ -120,7 +124,6 @@ local function corner(obj, r)
 end
 
 local function stroke(obj, col, thick, trans)
-    -- remove existing
     local existing = obj:FindFirstChildOfClass("UIStroke")
     if existing then existing:Destroy() end
     local s = Instance.new("UIStroke")
@@ -143,33 +146,13 @@ local function pad(obj, l, r, t, b)
     return p
 end
 
-local function label(parent, text, size, col, font, zindex)
-    local l = Instance.new("TextLabel")
-    l.BackgroundTransparency = 1
-    l.Text = text
-    l.TextSize = size or 11
-    l.TextColor3 = col or C.text
-    l.Font = font or Enum.Font.Gotham
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    l.ZIndex = zindex or 104
-    l.Parent = parent
-    return l
-end
-
 local function shortPos(v)
     return string.format("%.1f, %.1f, %.1f", v.X, v.Y, v.Z)
 end
 
-local function lerp(a, b, t)
-    return a + (b - a) * t
-end
-
+local function lerp(a, b, t) return a + (b - a) * t end
 local function lerpColor(a, b, t)
-    return Color3.new(
-        lerp(a.R, b.R, t),
-        lerp(a.G, b.G, t),
-        lerp(a.B, b.B, t)
-    )
+    return Color3.new(lerp(a.R,b.R,t), lerp(a.G,b.G,t), lerp(a.B,b.B,t))
 end
 
 -- ============================================================
@@ -190,8 +173,8 @@ end
 
 local function getInstanceCFrame(inst)
     if not inst then return nil end
-    if inst:IsA("Model")      then return inst:GetPivot() end
-    if inst:IsA("BasePart")   then return inst.CFrame end
+    if inst:IsA("Model")    then return inst:GetPivot() end
+    if inst:IsA("BasePart") then return inst.CFrame end
     local m = inst:FindFirstAncestorOfClass("Model")
     if m then return m:GetPivot() end
     local p = inst:FindFirstChildWhichIsA("BasePart", true)
@@ -201,11 +184,7 @@ end
 
 local function getGroundedCFrame(targetPos, offsetZ)
     offsetZ = offsetZ or 3
-    local back = Vector3.new(
-        targetPos.X + math.cos(0) * offsetZ,
-        targetPos.Y + 100,
-        targetPos.Z + math.sin(0) * offsetZ
-    )
+    local back = Vector3.new(targetPos.X + math.cos(0) * offsetZ, targetPos.Y + 100, targetPos.Z + math.sin(0) * offsetZ)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.IgnoreWater = true
@@ -214,23 +193,19 @@ local function getGroundedCFrame(targetPos, offsetZ)
     params.FilterDescendantsInstances = excl
     local result = workspace:Raycast(back, Vector3.new(0, -300, 0), params)
     local gY = result and (result.Position.Y + 0.5) or (targetPos.Y + 0.5)
-    local gPos = Vector3.new(targetPos.X + offsetZ, gY, targetPos.Z)
-    return CFrame.new(gPos, Vector3.new(targetPos.X, gY, targetPos.Z))
+    return CFrame.new(Vector3.new(targetPos.X + offsetZ, gY, targetPos.Z), Vector3.new(targetPos.X, gY, targetPos.Z))
 end
 
--- Teleport to position
 local function teleportToPos(pos)
     local ch, _, root = getCharacter()
     if not ch or not root then return false, "Character not found" end
     root.AssemblyLinearVelocity = Vector3.zero
     root.AssemblyAngularVelocity = Vector3.zero
-    local cf = getGroundedCFrame(pos, 3)
-    pcall(function() ch:PivotTo(cf) end)
+    pcall(function() ch:PivotTo(getGroundedCFrame(pos, 3)) end)
     task.wait(0.3)
     return true, shortPos(root.Position)
 end
 
--- Teleport to NPC by name
 local function teleportToNPC(npcName)
     local npc = getNPC(npcName)
     if not npc then return false, npcName .. " not found" end
@@ -239,14 +214,12 @@ local function teleportToNPC(npcName)
     return teleportToPos(cf.Position)
 end
 
--- Fire remote
 local function fireRemote(path, arg)
     local parts = string.split(path, ".")
     local obj = ReplicatedStorage
     for _, part in ipairs(parts) do
         local found = obj:FindFirstChild(part)
         if not found then
-            -- try WaitForChild with timeout
             local ok, res = pcall(function() return obj:WaitForChild(part, 3) end)
             if not ok or not res then return false, "Not found: " .. part end
             found = res
@@ -258,7 +231,6 @@ local function fireRemote(path, arg)
     return true, "Fired"
 end
 
--- Open shop UI
 local function openShopUI(shopName)
     local ok, ctrl = pcall(function()
         return require(ReplicatedStorage:WaitForChild("Modules"):WaitForChild("EventShopUIController"))
@@ -269,10 +241,8 @@ local function openShopUI(shopName)
     return true, "Opened"
 end
 
--- Main teleport handler per destination
 local function doTeleport(dest)
     if dest.useRemote then
-        -- PivotTo near NPC first for proximity check
         local npc = getNPC(dest.npcName)
         if npc then
             local cf = getInstanceCFrame(npc)
@@ -289,16 +259,11 @@ local function doTeleport(dest)
         local ok, msg = fireRemote("GameEvents.PlayerTeleportTriggered", dest.remoteArg)
         if not ok then return false, "Remote failed: " .. msg end
         task.wait(1.5)
-        -- open shop UI if applicable
-        if dest.shopName then
-            openShopUI(dest.shopName)
-        end
+        if dest.shopName then openShopUI(dest.shopName) end
         local _, _, root = getCharacter()
         return true, root and shortPos(root.Position) or "Done"
     else
-        -- Direct PivotTo
         local targetPos = dest.pos
-        -- Try to get live NPC position first
         local npc = getNPC(dest.npcName)
         if npc then
             local cf = getInstanceCFrame(npc)
@@ -306,6 +271,283 @@ local function doTeleport(dest)
         end
         return teleportToPos(targetPos)
     end
+end
+
+-- ============================================================
+-- EGG ESP SYSTEM
+-- ============================================================
+local espEnabled    = false
+local espCache      = {}   -- [uuid] = { lblEgg, lblPet, lblWt, box }
+local activeEggs    = {}   -- [uuid] = object
+local eggWeightData = {}   -- [uuid] = actual weight from server
+local weightCache   = {}   -- [eggName..petName] = range table
+local espRenderConn = nil
+local eggModels     = nil
+local eggPets       = nil
+local espListCallbacks = {} -- callbacks to refresh UI list
+
+-- Egg registry (safe require)
+local eggRegistry = nil
+pcall(function()
+    eggRegistry = require(ReplicatedStorage.Data.PetRegistry.PetEggs)
+end)
+
+-- Hook PetEggService for live weight data
+pcall(function()
+    ReplicatedStorage.GameEvents.PetEggService.OnClientEvent:Connect(function(eggModel, weight)
+        if type(eggModel) ~= "userdata" then return end
+        local ok, id = pcall(function() return eggModel:GetAttribute("OBJECT_UUID") end)
+        if not ok or not id then return end
+        if type(weight) == "number" then
+            eggWeightData[id] = weight
+            if espCache[id] then
+                local lbl = espCache[id][3]
+                if lbl then
+                    pcall(function() lbl.Text = string.format("%.2f KG", weight) end)
+                end
+            end
+        end
+    end)
+end)
+
+-- Upvalue extraction (exploit-only)
+pcall(function()
+    local conn = getconnections(ReplicatedStorage.GameEvents.PetEggService.OnClientEvent)
+    if conn and conn[1] then
+        local hatchFn = getupvalue(getupvalue(conn[1].Function, 1), 2)
+        eggModels = getupvalue(hatchFn, 1)
+        eggPets   = getupvalue(hatchFn, 2)
+    end
+end)
+
+-- Hook EggReadyToHatch
+pcall(function()
+    local oldHatch; oldHatch = hookfunction(
+        getconnections(ReplicatedStorage.GameEvents.EggReadyToHatch_RE.OnClientEvent)[1].Function,
+        newcclosure(function(objectId, petName)
+            pcall(function() espUpdateEgg(objectId, petName) end)
+            return oldHatch(objectId, petName)
+        end)
+    )
+end)
+
+local function getWeightRange(eggName, petName)
+    if not eggRegistry or not eggName or not petName then return nil end
+    local key = eggName .. petName
+    if weightCache[key] then return weightCache[key] end
+    local ok, result = pcall(function()
+        local ed = eggRegistry[eggName]
+        if not ed then return nil end
+        local items = ed.RarityData and ed.RarityData.Items
+        if not items then return nil end
+        local pd = items[petName]
+        if type(pd) ~= "table" then return nil end
+        local gd = pd.GeneratedPetData
+        if type(gd) ~= "table" then return nil end
+        local wr = gd.WeightRange
+        if type(wr) ~= "table" then return nil end
+        return { min = wr[1] or 0, max = wr[2] or 0, huge = gd.HugeChance or 0 }
+    end)
+    if ok and result then
+        weightCache[key] = result
+        return result
+    end
+    return nil
+end
+
+local function getRarityColor(eggName, petName)
+    if not eggRegistry or not eggName or not petName then return Color3.new(1,1,1) end
+    local ok, col = pcall(function()
+        local ed = eggRegistry[eggName]
+        if not ed then return Color3.new(1,1,1) end
+        local items = ed.RarityData and ed.RarityData.Items
+        if not items then return Color3.new(1,1,1) end
+        local pd = items[petName]
+        if type(pd) ~= "table" then return Color3.new(1,1,1) end
+        local odd = pd.NormalizedOdd or pd.ItemOdd or 100
+        if odd <= 1  then return Color3.fromRGB(255, 50,  50)  end
+        if odd <= 5  then return Color3.fromRGB(255, 165, 0)   end
+        if odd <= 15 then return Color3.fromRGB(255, 215, 0)   end
+        return Color3.new(1, 1, 1)
+    end)
+    return (ok and col) or Color3.new(1,1,1)
+end
+
+local RARITY_LABEL = {} -- for display in list
+local function getRarityLabel(eggName, petName)
+    if not eggRegistry or not eggName or not petName then return "Common", Color3.new(1,1,1) end
+    local ok, res = pcall(function()
+        local ed = eggRegistry[eggName]
+        if not ed then return "Common", Color3.new(1,1,1) end
+        local items = ed.RarityData and ed.RarityData.Items
+        if not items then return "Common", Color3.new(1,1,1) end
+        local pd = items[petName]
+        if type(pd) ~= "table" then return "Common", Color3.new(1,1,1) end
+        local odd = pd.NormalizedOdd or pd.ItemOdd or 100
+        if odd <= 1  then return "Legendary", Color3.fromRGB(255, 50, 50)   end
+        if odd <= 5  then return "Epic",       Color3.fromRGB(255, 165, 0)  end
+        if odd <= 15 then return "Rare",       Color3.fromRGB(255, 215, 0)  end
+        return "Common", Color3.new(0.85, 0.85, 0.85)
+    end)
+    if ok and res then return res end
+    return "Common", Color3.new(1,1,1)
+end
+
+local function buildWeightText(objectId, eggName, petName)
+    if eggWeightData[objectId] then
+        return string.format("%.2f KG", eggWeightData[objectId])
+    end
+    local wr = getWeightRange(eggName, petName)
+    if wr then
+        local s = string.format("%.1f-%.1f KG", wr.min, wr.max)
+        if wr.huge > 0 then s = s .. string.format(" | H:%.0f%%", wr.huge) end
+        return s
+    end
+    return "? KG"
+end
+
+-- Drawing helpers
+local function newText(size, color)
+    local t = Drawing.new("Text")
+    t.Size = size or 14
+    t.Color = color or Color3.new(1,1,1)
+    t.Outline = true
+    t.OutlineColor = Color3.new(0,0,0)
+    t.Center = true
+    t.Visible = false
+    return t
+end
+
+local function newBox()
+    local b = Drawing.new("Square")
+    b.Thickness = 1
+    b.Filled = false
+    b.Visible = false
+    return b
+end
+
+local function getObjFromId(id)
+    if not eggModels then return nil end
+    for m in eggModels do
+        if m:GetAttribute("OBJECT_UUID") == id then return m end
+    end
+    return nil
+end
+
+local function removeEspById(id)
+    if not espCache[id] then return end
+    for _, d in ipairs(espCache[id]) do pcall(function() d:Remove() end) end
+    espCache[id] = nil
+    activeEggs[id] = nil
+    for _, cb in ipairs(espListCallbacks) do pcall(cb) end
+end
+
+local function addEsp(object)
+    if not espEnabled then return end
+    if object:GetAttribute("OWNER") ~= Player.Name then return end
+    local id = object:GetAttribute("OBJECT_UUID")
+    if not id or espCache[id] then return end
+
+    local eggName = object:GetAttribute("EggName")
+    local petName = eggPets and eggPets[id]
+    local color   = getRarityColor(eggName, petName)
+    local wtText  = buildWeightText(id, eggName, petName)
+
+    local lblEgg = newText(13, Color3.new(1,1,1))
+    local lblPet = newText(15, color)
+    local lblWt  = newText(13, Color3.fromRGB(150,220,255))
+    local box    = newBox()
+
+    lblEgg.Text = tostring(eggName or "?")
+    lblPet.Text = tostring(petName or "?")
+    lblWt.Text  = wtText
+    box.Color   = color
+
+    espCache[id]   = { lblEgg, lblPet, lblWt, box }
+    activeEggs[id] = object
+    for _, cb in ipairs(espListCallbacks) do pcall(cb) end
+end
+
+function espUpdateEgg(objectId, petName)
+    local object = getObjFromId(objectId)
+    if not object or not espCache[objectId] then return end
+    local eggName = object:GetAttribute("EggName")
+    local color   = getRarityColor(eggName, petName)
+    local e       = espCache[objectId]
+    e[2].Text  = tostring(petName)
+    e[2].Color = color
+    e[3].Text  = buildWeightText(objectId, eggName, petName)
+    e[4].Color = color
+    for _, cb in ipairs(espListCallbacks) do pcall(cb) end
+end
+
+local function removeEsp(object)
+    if object:GetAttribute("OWNER") ~= Player.Name then return end
+    removeEspById(object:GetAttribute("OBJECT_UUID"))
+end
+
+local function updateAllEsp()
+    if not espEnabled then return end
+    local cam = workspace.CurrentCamera
+    local camPos = cam.CFrame.Position
+    for id, object in pairs(activeEggs) do
+        if not object or not object:IsDescendantOf(workspace) then
+            removeEspById(id); continue
+        end
+        local e = espCache[id]
+        if not e then continue end
+        local worldPos = object:GetPivot().Position
+        local pos, onScreen = cam:WorldToViewportPoint(worldPos)
+        if not onScreen then
+            for _, d in ipairs(e) do d.Visible = false end
+            continue
+        end
+        local dist = math.floor((camPos - worldPos).Magnitude)
+        local box  = math.clamp(50 - dist * 0.2, 20, 50)
+
+        e[4].Size     = Vector2.new(box, box)
+        e[4].Position = Vector2.new(pos.X - box/2, pos.Y - box/2)
+        e[4].Visible  = true
+
+        e[1].Position = Vector2.new(pos.X, pos.Y - box/2 - 30)
+        e[1].Visible  = true
+
+        e[2].Position = Vector2.new(pos.X, pos.Y - box/2 - 16)
+        e[2].Visible  = true
+
+        e[3].Text     = buildWeightText(id, object:GetAttribute("EggName"), eggPets and eggPets[id])
+                     .. string.format("  [%dm]", dist)
+        e[3].Position = Vector2.new(pos.X, pos.Y + box/2 + 4)
+        e[3].Visible  = true
+    end
+end
+
+local function clearAllEspDrawings()
+    for id, e in pairs(espCache) do
+        for _, d in ipairs(e) do pcall(function() d:Remove() end) end
+    end
+    espCache   = {}
+    activeEggs = {}
+end
+
+local function enableEsp()
+    espEnabled = true
+    -- Scan existing eggs
+    for _, obj in ipairs(CollectionService:GetTagged("PetEggServer")) do
+        task.spawn(addEsp, obj)
+    end
+    -- Connect signals
+    CollectionService:GetInstanceAddedSignal("PetEggServer"):Connect(addEsp)
+    CollectionService:GetInstanceRemovedSignal("PetEggServer"):Connect(removeEsp)
+    -- Start render loop
+    espRenderConn = RunService.PreRender:Connect(updateAllEsp)
+end
+
+local function disableEsp()
+    espEnabled = false
+    if espRenderConn then espRenderConn:Disconnect(); espRenderConn = nil end
+    clearAllEspDrawings()
+    for _, cb in ipairs(espListCallbacks) do pcall(cb) end
 end
 
 -- ============================================================
@@ -327,9 +569,7 @@ local function pushLog(tag, msg, col)
     }
     table.insert(logLines, entry)
     if #logLines > MAX_LOGS then table.remove(logLines, 1) end
-    for _, cb in ipairs(logRenderCallbacks) do
-        pcall(cb, entry)
-    end
+    for _, cb in ipairs(logRenderCallbacks) do pcall(cb, entry) end
     return entry
 end
 
@@ -359,7 +599,6 @@ Gui.DisplayOrder = 999999
 Gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 Gui.Parent = PlayerGui
 
--- Window
 local Win = Instance.new("Frame")
 Win.Name = "Win"
 Win.Size = UDim2.new(0, 540, 0, 460)
@@ -372,7 +611,6 @@ Win.Parent = Gui
 corner(Win, 14)
 stroke(Win, C.border, 1, 0)
 
--- Subtle inner glow top
 local TopGlow = Instance.new("Frame")
 TopGlow.Size = UDim2.new(1, -4, 0, 2)
 TopGlow.Position = UDim2.new(0, 2, 0, 1)
@@ -383,7 +621,7 @@ TopGlow.ZIndex = 101
 TopGlow.Parent = Win
 corner(TopGlow, 2)
 
--- ── HEADER ──────────────────────────────────────────────────
+-- ── HEADER ───────────────────────────────────────────────────
 local Header = Instance.new("Frame")
 Header.Size = UDim2.new(1, 0, 0, 48)
 Header.BackgroundColor3 = C.header
@@ -393,7 +631,6 @@ Header.Active = true
 Header.Parent = Win
 corner(Header, 14)
 
--- cover bottom rounded corners of header
 local HFill = Instance.new("Frame")
 HFill.Size = UDim2.new(1, 0, 0, 14)
 HFill.Position = UDim2.new(0, 0, 1, -14)
@@ -402,7 +639,6 @@ HFill.BorderSizePixel = 0
 HFill.ZIndex = 101
 HFill.Parent = Header
 
--- divider line
 local HDivider = Instance.new("Frame")
 HDivider.Size = UDim2.new(1, -20, 0, 1)
 HDivider.Position = UDim2.new(0, 10, 1, -1)
@@ -411,7 +647,6 @@ HDivider.BorderSizePixel = 0
 HDivider.ZIndex = 102
 HDivider.Parent = Header
 
--- Badge
 local Badge = Instance.new("Frame")
 Badge.Size = UDim2.new(0, 32, 0, 24)
 Badge.Position = UDim2.new(0, 12, 0.5, -12)
@@ -447,7 +682,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v3.0"
+VerLbl.Text = "v4.0"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -455,7 +690,6 @@ VerLbl.TextXAlignment = Enum.TextXAlignment.Left
 VerLbl.ZIndex = 103
 VerLbl.Parent = Header
 
--- Header action buttons
 local function hBtn(txt, xOff, bg)
     local b = Instance.new("TextButton")
     b.Size = UDim2.new(0, 28, 0, 24)
@@ -474,7 +708,7 @@ end
 local MinBtn   = hBtn("-", -72, C.greenMid)
 local CloseBtn = hBtn("✕", -38, C.red)
 
--- ── STATUS BAR ───────────────────────────────────────────────
+-- ── STATUS BAR ────────────────────────────────────────────────
 local StatusBar = Instance.new("Frame")
 StatusBar.Size = UDim2.new(1, -16, 0, 28)
 StatusBar.Position = UDim2.new(0, 8, 0, 52)
@@ -513,7 +747,7 @@ local function setStatus(txt, col)
     SDot.BackgroundColor3 = col or C.green
 end
 
--- ── BODY ─────────────────────────────────────────────────────
+-- ── BODY ──────────────────────────────────────────────────────
 local Body = Instance.new("Frame")
 Body.Size = UDim2.new(1, -16, 1, -96)
 Body.Position = UDim2.new(0, 8, 0, 88)
@@ -521,7 +755,6 @@ Body.BackgroundTransparency = 1
 Body.ZIndex = 101
 Body.Parent = Win
 
--- Sidebar
 local Sidebar = Instance.new("Frame")
 Sidebar.Size = UDim2.new(0, 56, 1, 0)
 Sidebar.BackgroundColor3 = C.sidebar
@@ -544,7 +777,6 @@ SidePad.PaddingLeft = UDim.new(0, 6)
 SidePad.PaddingRight = UDim.new(0, 6)
 SidePad.Parent = Sidebar
 
--- Content
 local Content = Instance.new("Frame")
 Content.Size = UDim2.new(1, -64, 1, 0)
 Content.Position = UDim2.new(0, 64, 0, 0)
@@ -552,12 +784,13 @@ Content.BackgroundTransparency = 1
 Content.ZIndex = 102
 Content.Parent = Body
 
--- ── TABS ─────────────────────────────────────────────────────
+-- ── TABS ──────────────────────────────────────────────────────
 local TABS = {
-    { id = "teleport", icon = "⊹", label = "TP"  },
-    { id = "console",  icon = "≡", label = "LOG" },
-    { id = "builder",  icon = "◈", label = "BLD" },
-    { id = "soon",     icon = "◌", label = "···" },
+    { id = "teleport", icon = "⊹",  label = "TP"  },
+    { id = "console",  icon = "≡",  label = "LOG" },
+    { id = "builder",  icon = "◈",  label = "BLD" },
+    { id = "esp",      icon = "◉",  label = "ESP" },
+    { id = "soon",     icon = "◌",  label = "···" },
 }
 
 local tabBtns = {}
@@ -607,9 +840,7 @@ local function makeTabBtn(tab)
     return btn
 end
 
-for _, t in ipairs(TABS) do
-    makeTabBtn(t)
-end
+for _, t in ipairs(TABS) do makeTabBtn(t) end
 
 local function makePanel(id)
     local p = Instance.new("ScrollingFrame")
@@ -631,11 +862,15 @@ local function setActiveTab(id)
     if activeTab == id then return end
     activeTab = id
     for tid, data in pairs(tabBtns) do
-        if tid == id then
+        local isActive = (tid == id)
+        local accentColor = C.green
+        -- ESP tab gets purple accent
+        if tid == "esp" then accentColor = C.purple end
+        if isActive then
             data.btn.BackgroundColor3 = C.greenDark
-            data.ico.TextColor3 = C.green
-            data.lbl.TextColor3 = C.green
-            stroke(data.btn, C.green, 1, 0.2)
+            data.ico.TextColor3 = accentColor
+            data.lbl.TextColor3 = accentColor
+            stroke(data.btn, accentColor, 1, 0.2)
         else
             data.btn.BackgroundColor3 = C.greenDeep
             data.ico.TextColor3 = C.textDim
@@ -649,14 +884,12 @@ local function setActiveTab(id)
     end
 end
 
--- ── SECTION LABEL ────────────────────────────────────────────
 local function sectionLbl(parent, txt)
     local f = Instance.new("Frame")
     f.Size = UDim2.new(1, 0, 0, 22)
     f.BackgroundTransparency = 1
     f.ZIndex = 104
     f.Parent = parent
-
     local l = Instance.new("TextLabel")
     l.Size = UDim2.new(1, -4, 1, 0)
     l.Position = UDim2.new(0, 4, 0, 0)
@@ -671,7 +904,6 @@ local function sectionLbl(parent, txt)
     return f
 end
 
--- ── ACTION BUTTON ────────────────────────────────────────────
 local function actionBtn(parent, txt, bgCol, h)
     local b = Instance.new("TextButton")
     b.Size = UDim2.new(1, 0, 0, h or 34)
@@ -702,7 +934,6 @@ pad(PTP, 2, 4, 4, 8)
 
 sectionLbl(PTP, "DESTINATIONS")
 
--- Destination cards grid
 local Grid = Instance.new("Frame")
 Grid.Size = UDim2.new(1, 0, 0, 0)
 Grid.AutomaticSize = Enum.AutomaticSize.Y
@@ -716,7 +947,7 @@ GridLayout.CellPadding = UDim2.new(0, 6, 0, 6)
 GridLayout.SortOrder = Enum.SortOrder.LayoutOrder
 GridLayout.Parent = Grid
 
-local destStatus = {} -- per-destination status
+local destStatus = {}
 
 for i, dest in ipairs(DESTINATIONS) do
     local card = Instance.new("TextButton")
@@ -730,7 +961,6 @@ for i, dest in ipairs(DESTINATIONS) do
     corner(card, 10)
     stroke(card, C.border, 1, 0)
 
-    -- Accent bar top
     local accentBar = Instance.new("Frame")
     accentBar.Size = UDim2.new(1, 0, 0, 3)
     accentBar.BackgroundColor3 = dest.color
@@ -740,7 +970,6 @@ for i, dest in ipairs(DESTINATIONS) do
     accentBar.Parent = card
     corner(accentBar, 2)
 
-    -- Icon
     local icoLbl = Instance.new("TextLabel")
     icoLbl.Size = UDim2.new(0, 28, 0, 28)
     icoLbl.Position = UDim2.new(0, 8, 0, 10)
@@ -753,7 +982,6 @@ for i, dest in ipairs(DESTINATIONS) do
     icoLbl.Parent = card
     corner(icoLbl, 8)
 
-    -- Title
     local titleL = Instance.new("TextLabel")
     titleL.Size = UDim2.new(1, -16, 0, 16)
     titleL.Position = UDim2.new(0, 8, 0, 42)
@@ -767,7 +995,6 @@ for i, dest in ipairs(DESTINATIONS) do
     titleL.ZIndex = 106
     titleL.Parent = card
 
-    -- Sub
     local subL = Instance.new("TextLabel")
     subL.Size = UDim2.new(1, -16, 0, 12)
     subL.Position = UDim2.new(0, 8, 0, 56)
@@ -780,7 +1007,6 @@ for i, dest in ipairs(DESTINATIONS) do
     subL.ZIndex = 106
     subL.Parent = card
 
-    -- Status indicator (top right)
     local statDot = Instance.new("Frame")
     statDot.Size = UDim2.new(0, 6, 0, 6)
     statDot.Position = UDim2.new(1, -12, 0, 8)
@@ -792,17 +1018,12 @@ for i, dest in ipairs(DESTINATIONS) do
 
     destStatus[dest.id] = statDot
 
-    -- Hover effect
     card.MouseEnter:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {
-            BackgroundColor3 = C.cardHover
-        }):Play()
+        TweenService:Create(card, TweenInfo.new(0.15), { BackgroundColor3 = C.cardHover }):Play()
         stroke(card, dest.color, 1, 0.5)
     end)
     card.MouseLeave:Connect(function()
-        TweenService:Create(card, TweenInfo.new(0.15), {
-            BackgroundColor3 = C.card
-        }):Play()
+        TweenService:Create(card, TweenInfo.new(0.15), { BackgroundColor3 = C.card }):Play()
         stroke(card, C.border, 1, 0)
     end)
 
@@ -824,16 +1045,13 @@ for i, dest in ipairs(DESTINATIONS) do
     end)
 end
 
--- update grid height
+GridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+    Grid.Size = UDim2.new(1, 0, 0, GridLayout.AbsoluteContentSize.Y)
+end)
 task.defer(function()
     Grid.Size = UDim2.new(1, 0, 0, GridLayout.AbsoluteContentSize.Y)
 end)
 
-GridLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-    Grid.Size = UDim2.new(1, 0, 0, GridLayout.AbsoluteContentSize.Y)
-end)
-
--- Quick actions
 sectionLbl(PTP, "QUICK ACTIONS")
 
 local QRow = Instance.new("Frame")
@@ -844,7 +1062,6 @@ QRow.Parent = PTP
 
 local QLayout = Instance.new("UIListLayout")
 QLayout.FillDirection = Enum.FillDirection.Horizontal
-QLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 QLayout.SortOrder = Enum.SortOrder.LayoutOrder
 QLayout.Padding = UDim.new(0, 6)
 QLayout.Parent = QRow
@@ -885,7 +1102,6 @@ PCSLayout.Padding = UDim.new(0, 6)
 PCSLayout.Parent = PCS
 pad(PCS, 2, 4, 4, 8)
 
--- Log area
 local LogFrame = Instance.new("Frame")
 LogFrame.Size = UDim2.new(1, 0, 0, 180)
 LogFrame.BackgroundColor3 = C.surface
@@ -920,17 +1136,18 @@ local function renderLogLine(entry)
     row.Text = string.format(
         '<font color="#%s" size="8">[%s]</font> <font color="#%s" size="8">%s</font>  <font color="#ffffff" size="9">%s</font>',
         "506850", entry.ts,
-        string.format("%02x%02x%02x", math.floor(entry.col.R*255), math.floor(entry.col.G*255), math.floor(entry.col.B*255)),
+        string.format("%02x%02x%02x",
+            math.floor(entry.col.R*255),
+            math.floor(entry.col.G*255),
+            math.floor(entry.col.B*255)),
         entry.tag,
-        entry.msg:gsub("<", "&lt;"):gsub(">", "&gt;")
+        entry.msg:gsub("<","&lt;"):gsub(">","&gt;")
     )
     row.TextXAlignment = Enum.TextXAlignment.Left
     row.TextTruncate = Enum.TextTruncate.AtEnd
     row.LayoutOrder = #logLines
     row.ZIndex = 106
     row.Parent = LogScroll
-
-    -- auto scroll
     task.defer(function()
         LogScroll.CanvasSize = UDim2.new(0, 0, 0, LogLayout.AbsoluteContentSize.Y + 8)
         LogScroll.CanvasPosition = Vector2.new(0,
@@ -939,13 +1156,8 @@ local function renderLogLine(entry)
 end
 
 table.insert(logRenderCallbacks, renderLogLine)
+for _, entry in ipairs(logLines) do renderLogLine(entry) end
 
--- Render existing logs (from before panel build)
-for _, entry in ipairs(logLines) do
-    renderLogLine(entry)
-end
-
--- Console toolbar
 local ConToolbar = Instance.new("Frame")
 ConToolbar.Size = UDim2.new(1, 0, 0, 28)
 ConToolbar.BackgroundTransparency = 1
@@ -958,7 +1170,7 @@ CTLayout.SortOrder = Enum.SortOrder.LayoutOrder
 CTLayout.Padding = UDim.new(0, 6)
 CTLayout.Parent = ConToolbar
 
-local CopyBtn  = actionBtn(ConToolbar, "⎘ Copy All", C.surface, 28)
+local CopyBtn = actionBtn(ConToolbar, "⎘ Copy All", C.surface, 28)
 CopyBtn.Size = UDim2.new(0, 100, 1, 0)
 CopyBtn.LayoutOrder = 1
 
@@ -966,7 +1178,6 @@ local ClearLogBtn = actionBtn(ConToolbar, "✕ Clear", C.redDark, 28)
 ClearLogBtn.Size = UDim2.new(0, 80, 1, 0)
 ClearLogBtn.LayoutOrder = 2
 
--- Executor
 sectionLbl(PCS, "SCRIPT EXECUTOR")
 
 local ExecBox = Instance.new("TextBox")
@@ -1009,7 +1220,6 @@ local ClearExecBtn = actionBtn(ExecToolbar, "✕ Clear", C.redDark, 28)
 ClearExecBtn.Size = UDim2.new(0, 80, 1, 0)
 ClearExecBtn.LayoutOrder = 2
 
--- Console connections
 CopyBtn.MouseButton1Click:Connect(function()
     local lines = {}
     for _, l in ipairs(logLines) do
@@ -1110,7 +1320,6 @@ local function fieldGroup(parent, labelTxt, placeholder, defaultVal)
     corner(box, 7)
     stroke(box, C.border, 1, 0)
     pad(box, 8, 8, 0, 0)
-
     return grp, box
 end
 
@@ -1142,7 +1351,6 @@ ResultLbl.ZIndex = 105
 ResultLbl.Parent = ResultCard
 pad(ResultLbl, 10, 10, 0, 0)
 
--- Tips
 local TipCard = Instance.new("Frame")
 TipCard.Size = UDim2.new(1, 0, 0, 70)
 TipCard.BackgroundColor3 = C.surface
@@ -1186,6 +1394,355 @@ FireBuildBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ============================================================
+-- PANEL: EGG ESP
+-- ============================================================
+local PESP = makePanel("esp")
+local PESPLayout = Instance.new("UIListLayout")
+PESPLayout.FillDirection = Enum.FillDirection.Vertical
+PESPLayout.SortOrder = Enum.SortOrder.LayoutOrder
+PESPLayout.Padding = UDim.new(0, 8)
+PESPLayout.Parent = PESP
+pad(PESP, 2, 4, 4, 8)
+
+-- Toggle card
+local ToggleCard = Instance.new("Frame")
+ToggleCard.Size = UDim2.new(1, 0, 0, 56)
+ToggleCard.BackgroundColor3 = C.card
+ToggleCard.BorderSizePixel = 0
+ToggleCard.ZIndex = 104
+ToggleCard.Parent = PESP
+corner(ToggleCard, 10)
+stroke(ToggleCard, C.border, 1, 0)
+
+local ToggleAccent = Instance.new("Frame")
+ToggleAccent.Size = UDim2.new(0, 3, 1, -12)
+ToggleAccent.Position = UDim2.new(0, 0, 0, 6)
+ToggleAccent.BackgroundColor3 = C.purple
+ToggleAccent.BackgroundTransparency = 0.3
+ToggleAccent.BorderSizePixel = 0
+ToggleAccent.ZIndex = 105
+ToggleAccent.Parent = ToggleCard
+corner(ToggleAccent, 2)
+
+local EspIconLbl = Instance.new("TextLabel")
+EspIconLbl.Size = UDim2.new(0, 32, 0, 32)
+EspIconLbl.Position = UDim2.new(0, 14, 0.5, -16)
+EspIconLbl.BackgroundColor3 = lerpColor(C.purple, C.bg, 0.75)
+EspIconLbl.BorderSizePixel = 0
+EspIconLbl.Text = "◉"
+EspIconLbl.TextSize = 16
+EspIconLbl.Font = Enum.Font.GothamBold
+EspIconLbl.TextColor3 = C.purple
+EspIconLbl.ZIndex = 105
+EspIconLbl.Parent = ToggleCard
+corner(EspIconLbl, 8)
+
+local EspTitleLbl = Instance.new("TextLabel")
+EspTitleLbl.Size = UDim2.new(1, -120, 0, 18)
+EspTitleLbl.Position = UDim2.new(0, 56, 0, 10)
+EspTitleLbl.BackgroundTransparency = 1
+EspTitleLbl.Text = "Pet Egg ESP"
+EspTitleLbl.TextColor3 = C.text
+EspTitleLbl.TextSize = 12
+EspTitleLbl.Font = Enum.Font.GothamBold
+EspTitleLbl.TextXAlignment = Enum.TextXAlignment.Left
+EspTitleLbl.ZIndex = 105
+EspTitleLbl.Parent = ToggleCard
+
+local EspSubLbl = Instance.new("TextLabel")
+EspSubLbl.Size = UDim2.new(1, -120, 0, 14)
+EspSubLbl.Position = UDim2.new(0, 56, 0, 30)
+EspSubLbl.BackgroundTransparency = 1
+EspSubLbl.Text = "Show egg names, rarity, weight"
+EspSubLbl.TextColor3 = C.textDim
+EspSubLbl.TextSize = 9
+EspSubLbl.Font = Enum.Font.Gotham
+EspSubLbl.TextXAlignment = Enum.TextXAlignment.Left
+EspSubLbl.ZIndex = 105
+EspSubLbl.Parent = ToggleCard
+
+-- Toggle pill button
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 52, 0, 26)
+ToggleBtn.Position = UDim2.new(1, -62, 0.5, -13)
+ToggleBtn.BackgroundColor3 = C.surface
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.Text = "OFF"
+ToggleBtn.TextColor3 = C.textDim
+ToggleBtn.TextSize = 10
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.ZIndex = 106
+ToggleBtn.Parent = ToggleCard
+corner(ToggleBtn, 13)
+stroke(ToggleBtn, C.border, 1, 0)
+
+local function updateToggleUI()
+    if espEnabled then
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {
+            BackgroundColor3 = C.purple
+        }):Play()
+        ToggleBtn.Text = "ON"
+        ToggleBtn.TextColor3 = C.white
+        stroke(ToggleBtn, C.purple, 1, 0.2)
+        stroke(ToggleCard, C.purple, 1, 0.5)
+    else
+        TweenService:Create(ToggleBtn, TweenInfo.new(0.2), {
+            BackgroundColor3 = C.surface
+        }):Play()
+        ToggleBtn.Text = "OFF"
+        ToggleBtn.TextColor3 = C.textDim
+        stroke(ToggleBtn, C.border, 1, 0)
+        stroke(ToggleCard, C.border, 1, 0)
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(function()
+    if espEnabled then
+        disableEsp()
+        setStatus("ESP disabled", C.textMid)
+        pushLog("ESP", "Disabled", C.textDim)
+    else
+        enableEsp()
+        setStatus("ESP enabled — scanning eggs...", C.purple)
+        pushLog("ESP", "Enabled", C.purple)
+    end
+    updateToggleUI()
+end)
+
+-- Stats row
+local StatsRow = Instance.new("Frame")
+StatsRow.Size = UDim2.new(1, 0, 0, 36)
+StatsRow.BackgroundTransparency = 1
+StatsRow.ZIndex = 104
+StatsRow.Parent = PESP
+
+local StatsLayout = Instance.new("UIListLayout")
+StatsLayout.FillDirection = Enum.FillDirection.Horizontal
+StatsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+StatsLayout.Padding = UDim.new(0, 6)
+StatsLayout.Parent = StatsRow
+
+local function statChip(parent, labelTxt, valTxt, col, order)
+    local chip = Instance.new("Frame")
+    chip.Size = UDim2.new(0.5, -3, 1, 0)
+    chip.BackgroundColor3 = C.surface
+    chip.BorderSizePixel = 0
+    chip.ZIndex = 105
+    chip.LayoutOrder = order
+    chip.Parent = parent
+    corner(chip, 8)
+    stroke(chip, C.border, 1, 0)
+
+    local valL = Instance.new("TextLabel")
+    valL.Size = UDim2.new(1, 0, 0, 18)
+    valL.Position = UDim2.new(0, 0, 0, 4)
+    valL.BackgroundTransparency = 1
+    valL.Text = valTxt
+    valL.TextColor3 = col or C.text
+    valL.TextSize = 14
+    valL.Font = Enum.Font.GothamBold
+    valL.ZIndex = 106
+    valL.Parent = chip
+
+    local labL = Instance.new("TextLabel")
+    labL.Size = UDim2.new(1, 0, 0, 10)
+    labL.Position = UDim2.new(0, 0, 0, 22)
+    labL.BackgroundTransparency = 1
+    labL.Text = labelTxt
+    labL.TextColor3 = C.textFaint
+    labL.TextSize = 8
+    labL.Font = Enum.Font.Gotham
+    labL.ZIndex = 106
+    labL.Parent = chip
+
+    return chip, valL
+end
+
+local _, ActiveCountLbl = statChip(StatsRow, "ACTIVE EGGS", "0", C.purple, 1)
+local _, TotalSeenLbl   = statChip(StatsRow, "TOTAL SEEN", "0", C.blue, 2)
+local totalSeen = 0
+
+-- Section: Active List
+sectionLbl(PESP, "ACTIVE EGG LIST")
+
+local EggListFrame = Instance.new("Frame")
+EggListFrame.Size = UDim2.new(1, 0, 0, 200)
+EggListFrame.BackgroundColor3 = C.surface
+EggListFrame.BorderSizePixel = 0
+EggListFrame.ZIndex = 104
+EggListFrame.Parent = PESP
+corner(EggListFrame, 8)
+stroke(EggListFrame, C.border, 1, 0)
+
+local EggListScroll = Instance.new("ScrollingFrame")
+EggListScroll.Size = UDim2.new(1, -2, 1, -2)
+EggListScroll.Position = UDim2.new(0, 1, 0, 1)
+EggListScroll.BackgroundTransparency = 1
+EggListScroll.ScrollBarThickness = 3
+EggListScroll.ScrollBarImageColor3 = C.purple
+EggListScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+EggListScroll.ZIndex = 105
+EggListScroll.Parent = EggListFrame
+
+local EggListLayout = Instance.new("UIListLayout")
+EggListLayout.FillDirection = Enum.FillDirection.Vertical
+EggListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+EggListLayout.Padding = UDim.new(0, 2)
+EggListLayout.Parent = EggListScroll
+pad(EggListScroll, 6, 6, 4, 4)
+
+-- Empty state label
+local EmptyLbl = Instance.new("TextLabel")
+EmptyLbl.Size = UDim2.new(1, 0, 0, 40)
+EmptyLbl.BackgroundTransparency = 1
+EmptyLbl.Text = "No active eggs — enable ESP first"
+EmptyLbl.TextColor3 = C.textFaint
+EmptyLbl.TextSize = 10
+EmptyLbl.Font = Enum.Font.Gotham
+EmptyLbl.ZIndex = 106
+EmptyLbl.Parent = EggListScroll
+
+local function rebuildEggList()
+    -- Clear existing rows (not EmptyLbl)
+    for _, c in ipairs(EggListScroll:GetChildren()) do
+        if c:IsA("Frame") then c:Destroy() end
+    end
+
+    local count = 0
+    for id, object in pairs(activeEggs) do
+        count += 1
+        local eggName = object:GetAttribute("EggName") or "?"
+        local petName = (eggPets and eggPets[id]) or "?"
+        local rarityLabel, rarityColor = getRarityLabel(eggName, petName)
+        local wtText = buildWeightText(id, eggName, petName)
+        local dist = 0
+        pcall(function()
+            local _, _, root = getCharacter()
+            if root then
+                dist = math.floor((root.Position - object:GetPivot().Position).Magnitude)
+            end
+        end)
+
+        local row = Instance.new("Frame")
+        row.Size = UDim2.new(1, 0, 0, 38)
+        row.BackgroundColor3 = C.card
+        row.BorderSizePixel = 0
+        row.ZIndex = 106
+        row.LayoutOrder = count
+        row.Parent = EggListScroll
+        corner(row, 6)
+
+        -- Rarity accent left
+        local accent = Instance.new("Frame")
+        accent.Size = UDim2.new(0, 3, 1, -8)
+        accent.Position = UDim2.new(0, 0, 0, 4)
+        accent.BackgroundColor3 = rarityColor
+        accent.BackgroundTransparency = 0.2
+        accent.BorderSizePixel = 0
+        accent.ZIndex = 107
+        accent.Parent = row
+        corner(accent, 2)
+
+        -- Pet name
+        local petL = Instance.new("TextLabel")
+        petL.Size = UDim2.new(1, -130, 0, 16)
+        petL.Position = UDim2.new(0, 12, 0, 4)
+        petL.BackgroundTransparency = 1
+        petL.Text = petName
+        petL.TextColor3 = rarityColor
+        petL.TextSize = 11
+        petL.Font = Enum.Font.GothamBold
+        petL.TextXAlignment = Enum.TextXAlignment.Left
+        petL.TextTruncate = Enum.TextTruncate.AtEnd
+        petL.ZIndex = 107
+        petL.Parent = row
+
+        -- Egg name
+        local eggL = Instance.new("TextLabel")
+        eggL.Size = UDim2.new(1, -130, 0, 12)
+        eggL.Position = UDim2.new(0, 12, 0, 22)
+        eggL.BackgroundTransparency = 1
+        eggL.Text = eggName
+        eggL.TextColor3 = C.textDim
+        eggL.TextSize = 9
+        eggL.Font = Enum.Font.Gotham
+        eggL.TextXAlignment = Enum.TextXAlignment.Left
+        eggL.ZIndex = 107
+        eggL.Parent = row
+
+        -- Weight
+        local wtL = Instance.new("TextLabel")
+        wtL.Size = UDim2.new(0, 80, 0, 14)
+        wtL.Position = UDim2.new(1, -86, 0, 4)
+        wtL.BackgroundTransparency = 1
+        wtL.Text = wtText
+        wtL.TextColor3 = Color3.fromRGB(150,220,255)
+        wtL.TextSize = 9
+        wtL.Font = Enum.Font.GothamBold
+        wtL.TextXAlignment = Enum.TextXAlignment.Right
+        wtL.ZIndex = 107
+        wtL.Parent = row
+
+        -- Distance
+        local distL = Instance.new("TextLabel")
+        distL.Size = UDim2.new(0, 80, 0, 12)
+        distL.Position = UDim2.new(1, -86, 0, 22)
+        distL.BackgroundTransparency = 1
+        distL.Text = dist .. "m away"
+        distL.TextColor3 = C.textFaint
+        distL.TextSize = 8
+        distL.Font = Enum.Font.Gotham
+        distL.TextXAlignment = Enum.TextXAlignment.Right
+        distL.ZIndex = 107
+        distL.Parent = row
+
+        -- Rarity badge
+        local badge = Instance.new("TextLabel")
+        badge.Size = UDim2.new(0, 56, 0, 14)
+        badge.Position = UDim2.new(1, -86, 0.5, -7)
+        badge.Visible = false -- hidden since already colored
+        badge.ZIndex = 107
+        badge.Parent = row
+    end
+
+    EmptyLbl.Visible = (count == 0)
+    ActiveCountLbl.Text = tostring(count)
+    EggListScroll.CanvasSize = UDim2.new(0, 0, 0, EggListLayout.AbsoluteContentSize.Y + 8)
+end
+
+-- Register rebuild callback
+table.insert(espListCallbacks, rebuildEggList)
+
+-- Also track totalSeen
+local _origAddEsp = addEsp
+addEsp = function(object)
+    _origAddEsp(object)
+    local id = object:GetAttribute("OBJECT_UUID")
+    if id and espCache[id] then
+        totalSeen += 1
+        TotalSeenLbl.Text = tostring(totalSeen)
+    end
+end
+
+-- Refresh button
+local RefreshBtn = actionBtn(PESP, "↺ Refresh List", C.surface, 28)
+stroke(RefreshBtn, C.border, 1, 0)
+RefreshBtn.MouseButton1Click:Connect(function()
+    rebuildEggList()
+    setStatus("Egg list refreshed", C.purple)
+end)
+
+-- Auto-refresh list every 2s when ESP active
+task.spawn(function()
+    while true do
+        task.wait(2)
+        if espEnabled then
+            pcall(rebuildEggList)
+        end
+    end
+end)
+
+-- ============================================================
 -- PANEL: COMING SOON
 -- ============================================================
 local PSN = makePanel("soon")
@@ -1199,10 +1756,10 @@ pad(PSN, 2, 4, 4, 8)
 sectionLbl(PSN, "COMING SOON")
 
 local SOON_ITEMS = {
-    { icon = "🔁", title = "Auto Farm",        desc = "Loop teleport + sell automatically" },
-    { icon = "📦", title = "Inventory",         desc = "View & manage player inventory"     },
-    { icon = "🌐", title = "Server Hop",        desc = "Find servers with specific items"   },
-    { icon = "📡", title = "Remote Spy Lite",   desc = "Monitor incoming RemoteEvent calls" },
+    { icon = "🔁",  title = "Auto Farm",       desc = "Loop teleport + sell automatically" },
+    { icon = "📦",  title = "Inventory",        desc = "View & manage player inventory"     },
+    { icon = "🌐",  title = "Server Hop",       desc = "Find servers with specific items"   },
+    { icon = "📡",  title = "Remote Spy Lite",  desc = "Monitor incoming RemoteEvent calls" },
     { icon = "🌧️", title = "Seed Rain Alert",  desc = "Notify on MythicalSeedRainEvent"    },
 }
 
@@ -1306,6 +1863,7 @@ end)
 CloseBtn.MouseButton1Click:Connect(function()
     print = _origPrint
     warn  = _origWarn
+    if espEnabled then disableEsp() end
     Gui:Destroy()
 end)
 
@@ -1338,6 +1896,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v3.0 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.0 loaded — Grow a Garden", C.green)
+pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v3.0 initialized")
+print("[LowHub] v4.0 initialized")
