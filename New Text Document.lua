@@ -1464,6 +1464,40 @@ FarmDumpBtn.MouseButton1Click:Connect(function()
     pushLog("BLD", "Farm dump command copied/printed", C.green)
 end)
 
+local autoSellEnabled = false
+local autoSellThread = nil
+local SellInvBtn = actionBtn(PBL, "Sell Inventory", C.greenDark, 32)
+stroke(SellInvBtn, C.greenMid, 1, 0.2)
+local AutoSellBtn = actionBtn(PBL, "Auto Sell: OFF", C.surface, 32)
+
+local function sellInventoryOnce()
+    local ok, msg = fireRemote("GameEvents.Sell_Inventory", "")
+    ResultLbl.Text = ok and "Sell inventory fired" or ("Sell failed: " .. msg)
+    ResultLbl.TextColor3 = ok and C.green or C.red
+    setStatus(ResultLbl.Text, ok and C.green or C.red)
+    pushLog(ok and "FARM" or "ERR", "Sell_Inventory → " .. msg, ok and C.green or C.red)
+    return ok
+end
+
+SellInvBtn.MouseButton1Click:Connect(function()
+    task.spawn(sellInventoryOnce)
+end)
+
+AutoSellBtn.MouseButton1Click:Connect(function()
+    autoSellEnabled = not autoSellEnabled
+    AutoSellBtn.Text = autoSellEnabled and "Auto Sell: ON" or "Auto Sell: OFF"
+    AutoSellBtn.BackgroundColor3 = autoSellEnabled and C.greenDark or C.surface
+    if autoSellEnabled and not autoSellThread then
+        autoSellThread = task.spawn(function()
+            while autoSellEnabled do
+                pcall(sellInventoryOnce)
+                task.wait(5)
+            end
+            autoSellThread = nil
+        end)
+    end
+end)
+
 -- ============================================================
 -- PANEL: EGG ESP
 -- ============================================================
