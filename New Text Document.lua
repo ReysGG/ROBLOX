@@ -1,4 +1,4 @@
--- LOW HUB v4.1.19 - Grow a Garden
+-- LOW HUB v4.1.20 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.19 boot"
+BootBtn.Text = "LowHub v4.1.20 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.19 start")
+bootStatus("LowHub v4.1.20 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.19"
+VerLbl.Text = "v4.1.20"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1480,6 +1480,8 @@ local autoSellEnabled = false
 local autoSellThread = nil
 autoFarmEnabled = false
 autoFarmThread = nil
+autoFarmPhase = "idle"
+autoFarmLastStatus = ""
 
 local SeedPickBtn = actionBtn(PFARM, "Seed: Carrot", C.surface, 32)
 local BuySeedBtn = actionBtn(PFARM, "Buy Once", C.greenDark, 32)
@@ -1693,6 +1695,17 @@ local function sellInventoryOnce()
     return ok
 end
 
+function farmSetPhase(phase, detail, color)
+    local txt = "Auto Farm | " .. phase .. (detail and detail ~= "" and (" | " .. detail) or "")
+    autoFarmPhase = phase
+    if txt ~= autoFarmLastStatus then
+        autoFarmLastStatus = txt
+        FarmStatusLbl.Text = txt
+        setStatus(txt, color or C.yellow)
+        pushLog("FARM", txt, color or C.yellow)
+    end
+end
+
 function findSeedTool(seedName)
     local ch = Player.Character
     local containers = { Player:FindFirstChild("Backpack"), ch }
@@ -1725,23 +1738,42 @@ end
 
 function getPlantPosition()
     local _, _, root = getCharacter()
-    if not root then return Vector3.new(0, 3, 0) end
-    return root.Position + (root.CFrame.LookVector * 6)
+    if not root then return Vector3.new(0, 3, 0), "no root" end
+    return root.Position + (root.CFrame.LookVector * 6), "near player"
+end
+
+function teleportToPlantPosition()
+    local ch, _, root = getCharacter()
+    if not ch or not root then return false, "character missing" end
+    local pos, source = getPlantPosition()
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
+    ch:PivotTo(CFrame.new(pos + Vector3.new(0, 2, 0)))
+    task.wait(0.25)
+    local dist = (root.Position - pos).Magnitude
+    return dist < 10, source .. " dist " .. tostring(math.floor(dist))
 end
 
 function plantSelectedSeedOnce()
     local seedName = seedOptions[selectedSeedIndex]
+    farmSetPhase("check seed", seedName, C.yellow)
     local tool = findSeedTool(seedName)
     if not tool then
-        FarmStatusLbl.Text = "Auto Farm | buying " .. seedName
+        farmSetPhase("buy seed", seedName, C.yellow)
         buySelectedSeedOnce()
-        task.wait(0.8)
+        task.wait(1)
         tool = findSeedTool(seedName)
+        if not tool then return false, "seed not in backpack" end
     end
-    local _, equipMsg = equipSeedTool(seedName)
+    local equipped, equipMsg = equipSeedTool(seedName)
+    if not equipped then return false, equipMsg end
+    farmSetPhase("teleport garden", seedName, C.yellow)
+    local tpOk, tpMsg = teleportToPlantPosition()
+    if not tpOk then return false, tpMsg end
     local pos = getPlantPosition()
     local remote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("Plant_RE")
     if not remote then return false, "Plant_RE not found" end
+    farmSetPhase("plant", seedName, C.yellow)
     local ok = false
     local msg = "plant failed"
     ok = pcall(function() remote:FireServer(pos, seedName) end)
@@ -1754,8 +1786,7 @@ function plantSelectedSeedOnce()
         ok = pcall(function() remote:FireServer(seedName) end)
         msg = ok and "Plant_RE name" or msg
     end
-    FarmStatusLbl.Text = "Auto Farm | " .. msg
-    pushLog(ok and "FARM" or "ERR", msg .. " | " .. tostring(equipMsg), ok and C.green or C.red)
+    farmSetPhase(ok and "planted" or "plant failed", msg, ok and C.green or C.red)
     return ok, msg
 end
 
@@ -1809,23 +1840,41 @@ end
 
 function autoFarmStep()
     local seedName = seedOptions[selectedSeedIndex]
-    FarmStatusLbl.Text = "Auto Farm | plant " .. seedName
-    plantSelectedSeedOnce()
+    local plantOk, plantMsg = plantSelectedSeedOnce()
+    if not plantOk then
+        farmSetPhase("plant blocked", plantMsg, C.red)
+        task.wait(3)
+        return
+    end
     local waited = 0
-    while autoFarmEnabled and waited < 25 do
+    local target = findHarvestTarget(seedName)
+    farmSetPhase("wait harvest", seedName, C.yellow)
+    while autoFarmEnabled and waited < 30 and not target do
         task.wait(5)
         waited = waited + 5
-        FarmStatusLbl.Text = "Auto Farm | grow wait " .. tostring(waited) .. "s"
-        if findHarvestTarget(seedName) then break end
+        target = findHarvestTarget(seedName)
+        if waited == 15 or waited == 30 then
+            farmSetPhase("wait harvest", tostring(waited) .. "s", C.yellow)
+        end
     end
     if not autoFarmEnabled then return end
+    if target then
+        farmSetPhase("harvest ready", target.Name, C.green)
+    else
+        farmSetPhase("harvest timeout", seedName, C.yellow)
+    end
     local okHarvest, harvestMsg = harvestSelectedSeedOnce()
-    FarmStatusLbl.Text = "Auto Farm | " .. harvestMsg
-    pushLog(okHarvest and "FARM" or "ERR", harvestMsg, okHarvest and C.green or C.red)
+    farmSetPhase(okHarvest and "harvest done" or "harvest miss", harvestMsg, okHarvest and C.green or C.red)
     task.wait(0.8)
-    if autoFarmEnabled then sellInventoryOnce() end
+    if autoFarmEnabled then
+        farmSetPhase("sell", "inventory", C.yellow)
+        sellInventoryOnce()
+    end
     task.wait(0.8)
-    if autoFarmEnabled then buySelectedSeedOnce() end
+    if autoFarmEnabled then
+        farmSetPhase("buy next", seedName, C.yellow)
+        buySelectedSeedOnce()
+    end
 end
 
 SeedPickBtn.MouseButton1Click:Connect(function()
@@ -1877,7 +1926,7 @@ AutoFarmBtn.MouseButton1Click:Connect(function()
     autoFarmEnabled = not autoFarmEnabled
     AutoFarmBtn.Text = autoFarmEnabled and "Auto Farm: ON" or "Auto Farm: OFF"
     AutoFarmBtn.BackgroundColor3 = autoFarmEnabled and C.greenDark or C.surface
-    FarmStatusLbl.Text = autoFarmEnabled and "Auto Farm | running" or "Auto Farm | stopped"
+    farmSetPhase(autoFarmEnabled and "running" or "stopped", seedOptions[selectedSeedIndex], autoFarmEnabled and C.green or C.red)
     if autoFarmEnabled and not autoFarmThread then
         autoFarmThread = task.spawn(function()
             while autoFarmEnabled do
@@ -1885,7 +1934,7 @@ AutoFarmBtn.MouseButton1Click:Connect(function()
                 task.wait(1)
             end
             autoFarmThread = nil
-            FarmStatusLbl.Text = "Auto Farm | stopped"
+            farmSetPhase("stopped", "loop ended", C.red)
         end)
     end
 end)
@@ -2468,7 +2517,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.19"
+    FallbackBtn.Text = "LowHub v4.1.20"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2535,7 +2584,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.19 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.20 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.19 initialized")
+print("[LowHub] v4.1.20 initialized")
