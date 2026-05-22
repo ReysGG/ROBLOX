@@ -1,4 +1,4 @@
--- LOW HUB v4.1.24 - Grow a Garden
+-- LOW HUB v4.1.25 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.24 boot"
+BootBtn.Text = "LowHub v4.1.25 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.24 start")
+bootStatus("LowHub v4.1.25 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.24"
+VerLbl.Text = "v4.1.25"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1736,7 +1736,19 @@ function equipSeedTool(seedName)
     return tool, "equipped"
 end
 
-function getPlantPosition()
+function getSeedQuantity(tool)
+    if not tool then return 0 end
+    local qty = tonumber(tool:GetAttribute("Quantity")) or 0
+    if qty <= 0 then
+        local found = tostring(tool.Name):match("%[X(%d+)%]")
+        qty = tonumber(found) or 1
+    end
+    if qty > 12 then qty = 12 end
+    if qty < 0 then qty = 0 end
+    return qty
+end
+
+function getPlantPosition(index)
     local _, _, root = getCharacter()
     if not root then return Vector3.new(0, 0, 0), "no root" end
     local best, bestDist = nil, 160
@@ -1754,9 +1766,12 @@ function getPlantPosition()
     end
     if best then
         local p = best.Position
-        return Vector3.new(p.X, 0.1355266571044922, p.Z), "nearest Can_Plant"
+        local i = index or 1
+        local ox = ((i - 1) % 4) * 2.2 - 3.3
+        local oz = (math.floor((i - 1) / 4) % 3) * 2.2 - 2.2
+        return Vector3.new(p.X + ox, 0.1355266571044922, p.Z + oz), "nearest Can_Plant"
     end
-    local p = root.Position + (root.CFrame.LookVector * 7)
+    local p = root.Position + (root.CFrame.LookVector * (5 + ((index or 1) % 4)))
     return Vector3.new(p.X, 0.1355266571044922, p.Z), "front of player"
 end
 
@@ -1773,33 +1788,51 @@ function teleportToPlantPosition()
     return true, "Farm remote moved " .. tostring(math.floor(moved))
 end
 
-function plantSelectedSeedOnce()
-    if not autoFarmEnabled then return false, "stopped" end
+function plantSelectedSeedBatch()
+    if not autoFarmEnabled then return false, "stopped", 0 end
     local seedName = seedOptions[selectedSeedIndex]
     farmSetPhase("check seed", seedName, C.yellow)
     local tool = findSeedTool(seedName)
     if not tool then
         farmSetPhase("buy seed", seedName, C.yellow)
         buySelectedSeedOnce()
-        task.wait(1)
-        if not autoFarmEnabled then return false, "stopped" end
+        task.wait(1.2)
+        if not autoFarmEnabled then return false, "stopped", 0 end
         tool = findSeedTool(seedName)
-        if not tool then return false, "seed not in backpack" end
+        if not tool then return false, "no seed after buy", 0 end
     end
+    local count = getSeedQuantity(tool)
+    if count <= 0 then return false, "seed quantity 0", 0 end
     local equipped, equipMsg = equipSeedTool(seedName)
-    if not autoFarmEnabled then return false, "stopped" end
-    if not equipped then return false, equipMsg end
+    if not autoFarmEnabled then return false, "stopped", 0 end
+    if not equipped then return false, equipMsg, 0 end
     farmSetPhase("teleport garden", seedName, C.yellow)
     local tpOk, tpMsg = teleportToPlantPosition()
-    if not autoFarmEnabled then return false, "stopped" end
-    if not tpOk then return false, tpMsg end
-    local pos, posSource = getPlantPosition()
+    if not autoFarmEnabled then return false, "stopped", 0 end
+    if not tpOk then return false, tpMsg, 0 end
     local remote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("Plant_RE")
-    if not remote then return false, "Plant_RE not found" end
-    farmSetPhase("plant", seedName .. " at " .. posSource, C.yellow)
-    local ok = pcall(function() remote:FireServer(pos, seedName) end)
-    local msg = ok and "Plant_RE vector,name" or "plant failed"
-    farmSetPhase(ok and "planted" or "plant failed", msg, ok and C.green or C.red)
+    if not remote then return false, "Plant_RE not found", 0 end
+    local planted = 0
+    local posSource = "unknown"
+    farmSetPhase("plant batch", seedName .. " x" .. tostring(count), C.yellow)
+    for i = 1, count do
+        if not autoFarmEnabled then return false, "stopped", planted end
+        local pos
+        pos, posSource = getPlantPosition(i)
+        local ok = pcall(function() remote:FireServer(pos, seedName) end)
+        if ok then planted = planted + 1 end
+        if i == count or i == 1 or i == 6 or i == 12 then
+            farmSetPhase("plant batch", tostring(planted) .. "/" .. tostring(count) .. " at " .. posSource, C.yellow)
+        end
+        task.wait(0.25)
+    end
+    local msg = "planted " .. tostring(planted) .. "/" .. tostring(count)
+    farmSetPhase(planted > 0 and "planted" or "plant failed", msg, planted > 0 and C.green or C.red)
+    return planted > 0, msg, planted
+end
+
+function plantSelectedSeedOnce()
+    local ok, msg = plantSelectedSeedBatch()
     return ok, msg
 end
 
@@ -1868,23 +1901,38 @@ function harvestSelectedSeedOnce()
     return okAny, okAny and ("harvest attempted: " .. target.Name) or "harvest failed"
 end
 
+function harvestReadyBatch()
+    local tries = 0
+    local done = 0
+    while autoFarmEnabled and tries < 20 do
+        local target = findHarvestTarget(seedOptions[selectedSeedIndex])
+        if not target then break end
+        tries = tries + 1
+        farmSetPhase("harvest all", target.Name, C.green)
+        local ok = harvestSelectedSeedOnce()
+        if ok then done = done + 1 end
+        task.wait(0.5)
+    end
+    return done, tries
+end
+
 function autoFarmStep()
     local seedName = seedOptions[selectedSeedIndex]
-    local plantOk, plantMsg = plantSelectedSeedOnce()
+    local plantOk, plantMsg, planted = plantSelectedSeedBatch()
     if not plantOk then
         farmSetPhase("plant blocked", plantMsg, C.red)
-        task.wait(3)
+        task.wait(8)
         return
     end
     local waited = 0
     local target = findHarvestTarget(seedName)
-    farmSetPhase("wait harvest", seedName, C.yellow)
-    while autoFarmEnabled and waited < 30 and not target do
+    farmSetPhase("wait harvest", "planted " .. tostring(planted), C.yellow)
+    while autoFarmEnabled and waited < 60 and not target do
         task.wait(5)
         waited = waited + 5
         target = findHarvestTarget(seedName)
-        if waited == 15 or waited == 30 then
-            farmSetPhase("wait harvest", tostring(waited) .. "s", C.yellow)
+        if waited == 15 or waited == 30 or waited == 60 then
+            farmSetPhase("wait harvest", tostring(waited) .. "s after " .. tostring(planted) .. " plants", C.yellow)
         end
     end
     if not autoFarmEnabled then return end
@@ -1893,18 +1941,19 @@ function autoFarmStep()
     else
         farmSetPhase("harvest timeout", seedName, C.yellow)
     end
-    local okHarvest, harvestMsg = harvestSelectedSeedOnce()
-    farmSetPhase(okHarvest and "harvest done" or "harvest miss", harvestMsg, okHarvest and C.green or C.red)
+    local done, tries = harvestReadyBatch()
+    farmSetPhase(done > 0 and "harvest done" or "harvest miss", tostring(done) .. "/" .. tostring(tries), done > 0 and C.green or C.yellow)
     task.wait(0.8)
     if autoFarmEnabled then
         farmSetPhase("sell", "inventory", C.yellow)
         sellInventoryOnce()
     end
-    task.wait(0.8)
+    task.wait(1.2)
     if autoFarmEnabled then
         farmSetPhase("buy next", seedName, C.yellow)
         buySelectedSeedOnce()
     end
+    task.wait(2)
 end
 
 SeedPickBtn.MouseButton1Click:Connect(function()
@@ -2547,7 +2596,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.24"
+    FallbackBtn.Text = "LowHub v4.1.25"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2614,7 +2663,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.24 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.25 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.24 initialized")
+print("[LowHub] v4.1.25 initialized")
