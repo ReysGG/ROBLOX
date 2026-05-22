@@ -1,6 +1,6 @@
--- LOW HUB v4.0 — Grow a Garden
+-- LOW HUB v4.1 — Grow a Garden
 -- LocalScript | 1 file
--- Sections: TELEPORT | CONSOLE | BUILDER | EGG ESP | COMING SOON
+-- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -285,6 +285,19 @@ local espRenderConn = nil
 local eggModels     = nil
 local eggPets       = nil
 local espListCallbacks = {} -- callbacks to refresh UI list
+local espSettings = {
+    rarityFilter = "All",
+    searchText = "",
+    sortMode = "Distance",
+    colorMode = "Rarity",
+    staticColor = C.purple,
+    boxScale = 1,
+    maxDistance = 0,
+    showEggName = true,
+    showPetName = true,
+    showWeight = true,
+    showDistance = true,
+}
 
 -- Egg registry (safe require)
 local eggRegistry = nil
@@ -374,6 +387,7 @@ local function getRarityColor(eggName, petName)
 end
 
 local RARITY_LABEL = {} -- for display in list
+local RARITY_RANK = { Common = 1, Rare = 2, Epic = 3, Legendary = 4, Unknown = 0 }
 local function getRarityLabel(eggName, petName)
     if not eggRegistry or not eggName or not petName then return "Common", Color3.new(1,1,1) end
     local ok, res = pcall(function()
@@ -390,7 +404,18 @@ local function getRarityLabel(eggName, petName)
         return "Common", Color3.new(0.85, 0.85, 0.85)
     end)
     if ok and res then return res end
-    return "Common", Color3.new(1,1,1)
+    return "Unknown", Color3.new(1,1,1)
+end
+
+local function getEspColor(eggName, petName)
+    if espSettings.colorMode == "Static" then return espSettings.staticColor end
+    return getRarityColor(eggName, petName)
+end
+
+local function getEggDistance(object)
+    local _, _, root = getCharacter()
+    if not root or not object then return 0 end
+    return math.floor((root.Position - object:GetPivot().Position).Magnitude)
 end
 
 local function buildWeightText(objectId, eggName, petName)
@@ -450,7 +475,7 @@ local function addEsp(object)
 
     local eggName = object:GetAttribute("EggName")
     local petName = eggPets and eggPets[id]
-    local color   = getRarityColor(eggName, petName)
+    local color   = getEspColor(eggName, petName)
     local wtText  = buildWeightText(id, eggName, petName)
 
     local lblEgg = newText(13, Color3.new(1,1,1))
@@ -472,7 +497,7 @@ function espUpdateEgg(objectId, petName)
     local object = getObjFromId(objectId)
     if not object or not espCache[objectId] then return end
     local eggName = object:GetAttribute("EggName")
-    local color   = getRarityColor(eggName, petName)
+    local color   = getEspColor(eggName, petName)
     local e       = espCache[objectId]
     e[2].Text  = tostring(petName)
     e[2].Color = color
@@ -503,22 +528,35 @@ local function updateAllEsp()
             continue
         end
         local dist = math.floor((camPos - worldPos).Magnitude)
-        local box  = math.clamp(50 - dist * 0.2, 20, 50)
+        if espSettings.maxDistance > 0 and dist > espSettings.maxDistance then
+            for _, d in ipairs(e) do d.Visible = false end
+            continue
+        end
+        local eggName = object:GetAttribute("EggName")
+        local petName = eggPets and eggPets[id]
+        local color = getEspColor(eggName, petName)
+        local box  = math.clamp(50 - dist * 0.2, 20, 50) * espSettings.boxScale
 
+        e[4].Color    = color
         e[4].Size     = Vector2.new(box, box)
         e[4].Position = Vector2.new(pos.X - box/2, pos.Y - box/2)
         e[4].Visible  = true
 
+        e[1].Text     = tostring(eggName or "?")
         e[1].Position = Vector2.new(pos.X, pos.Y - box/2 - 30)
-        e[1].Visible  = true
+        e[1].Visible  = espSettings.showEggName
 
+        e[2].Text     = tostring(petName or "?")
+        e[2].Color    = color
         e[2].Position = Vector2.new(pos.X, pos.Y - box/2 - 16)
-        e[2].Visible  = true
+        e[2].Visible  = espSettings.showPetName
 
-        e[3].Text     = buildWeightText(id, object:GetAttribute("EggName"), eggPets and eggPets[id])
-                     .. string.format("  [%dm]", dist)
+        local infoParts = {}
+        if espSettings.showWeight then table.insert(infoParts, buildWeightText(id, eggName, petName)) end
+        if espSettings.showDistance then table.insert(infoParts, string.format("[%dm]", dist)) end
+        e[3].Text     = table.concat(infoParts, "  ")
         e[3].Position = Vector2.new(pos.X, pos.Y + box/2 + 4)
-        e[3].Visible  = true
+        e[3].Visible  = (#infoParts > 0)
     end
 end
 
@@ -682,7 +720,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.0"
+VerLbl.Text = "v4.1"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -788,8 +826,8 @@ Content.Parent = Body
 local TABS = {
     { id = "teleport", icon = "⊹",  label = "TP"  },
     { id = "console",  icon = "≡",  label = "LOG" },
-    { id = "builder",  icon = "◈",  label = "BLD" },
     { id = "esp",      icon = "◉",  label = "ESP" },
+    { id = "builder",  icon = "◈",  label = "BLD" },
     { id = "soon",     icon = "◌",  label = "···" },
 }
 
@@ -1561,6 +1599,153 @@ end
 local _, ActiveCountLbl = statChip(StatsRow, "ACTIVE EGGS", "0", C.purple, 1)
 local _, TotalSeenLbl   = statChip(StatsRow, "TOTAL SEEN", "0", C.blue, 2)
 local totalSeen = 0
+local rebuildEggList
+
+sectionLbl(PESP, "FILTERS")
+
+local FilterRow = Instance.new("Frame")
+FilterRow.Size = UDim2.new(1, 0, 0, 28)
+FilterRow.BackgroundTransparency = 1
+FilterRow.ZIndex = 104
+FilterRow.Parent = PESP
+local FilterLayout = Instance.new("UIListLayout")
+FilterLayout.FillDirection = Enum.FillDirection.Horizontal
+FilterLayout.SortOrder = Enum.SortOrder.LayoutOrder
+FilterLayout.Padding = UDim.new(0, 4)
+FilterLayout.Parent = FilterRow
+
+local filterButtons = {}
+local function smallBtn(parent, text, width, col)
+    local b = actionBtn(parent, text, col or C.surface, 28)
+    b.Size = UDim2.new(0, width or 64, 1, 0)
+    b.TextSize = 9
+    return b
+end
+local function updateFilterButtons()
+    for rarity, btn in pairs(filterButtons) do
+        if espSettings.rarityFilter == rarity then
+            btn.BackgroundColor3 = C.purple
+            btn.TextColor3 = C.white
+            stroke(btn, C.purple, 1, 0.2)
+        else
+            btn.BackgroundColor3 = C.surface
+            btn.TextColor3 = C.text
+            stroke(btn, C.border, 1, 0)
+        end
+    end
+end
+
+for _, rarity in ipairs({"All", "Common", "Rare", "Epic", "Legendary"}) do
+    local btn = smallBtn(FilterRow, rarity, rarity == "Legendary" and 78 or 58)
+    filterButtons[rarity] = btn
+    btn.MouseButton1Click:Connect(function()
+        espSettings.rarityFilter = rarity
+        updateFilterButtons()
+        if rebuildEggList then rebuildEggList() end
+        setStatus("ESP filter: " .. rarity, C.purple)
+    end)
+end
+updateFilterButtons()
+
+local SearchBox = Instance.new("TextBox")
+SearchBox.Size = UDim2.new(1, 0, 0, 30)
+SearchBox.BackgroundColor3 = C.surface
+SearchBox.BorderSizePixel = 0
+SearchBox.PlaceholderText = "Search egg or pet name..."
+SearchBox.PlaceholderColor3 = C.textFaint
+SearchBox.Text = ""
+SearchBox.TextColor3 = C.text
+SearchBox.TextSize = 10
+SearchBox.Font = Enum.Font.Code
+SearchBox.TextXAlignment = Enum.TextXAlignment.Left
+SearchBox.ClearTextOnFocus = false
+SearchBox.ZIndex = 104
+SearchBox.Parent = PESP
+corner(SearchBox, 8)
+stroke(SearchBox, C.border, 1, 0)
+pad(SearchBox, 8, 8, 0, 0)
+SearchBox:GetPropertyChangedSignal("Text"):Connect(function()
+    espSettings.searchText = SearchBox.Text:lower()
+    if rebuildEggList then rebuildEggList() end
+end)
+
+sectionLbl(PESP, "SETTINGS")
+
+local SettingsRow = Instance.new("Frame")
+SettingsRow.Size = UDim2.new(1, 0, 0, 62)
+SettingsRow.BackgroundTransparency = 1
+SettingsRow.ZIndex = 104
+SettingsRow.Parent = PESP
+local SettingsLayout = Instance.new("UIGridLayout")
+SettingsLayout.CellSize = UDim2.new(0.5, -4, 0, 28)
+SettingsLayout.CellPadding = UDim2.new(0, 6, 0, 6)
+SettingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SettingsLayout.Parent = SettingsRow
+
+local function toggleSetting(key, label)
+    local btn = actionBtn(SettingsRow, label .. ": ON", C.surface, 28)
+    btn.TextSize = 9
+    local function refresh()
+        btn.Text = label .. ": " .. (espSettings[key] and "ON" or "OFF")
+        btn.TextColor3 = espSettings[key] and C.purple or C.textDim
+    end
+    btn.MouseButton1Click:Connect(function()
+        espSettings[key] = not espSettings[key]
+        refresh()
+        if rebuildEggList then rebuildEggList() end
+    end)
+    refresh()
+    return btn
+end
+
+toggleSetting("showEggName", "Egg")
+toggleSetting("showPetName", "Pet")
+toggleSetting("showWeight", "Weight")
+toggleSetting("showDistance", "Distance")
+
+local ModeRow = Instance.new("Frame")
+ModeRow.Size = UDim2.new(1, 0, 0, 28)
+ModeRow.BackgroundTransparency = 1
+ModeRow.ZIndex = 104
+ModeRow.Parent = PESP
+local ModeLayout = Instance.new("UIListLayout")
+ModeLayout.FillDirection = Enum.FillDirection.Horizontal
+ModeLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ModeLayout.Padding = UDim.new(0, 6)
+ModeLayout.Parent = ModeRow
+
+local ColorModeBtn = smallBtn(ModeRow, "Color: Rarity", 112)
+ColorModeBtn.MouseButton1Click:Connect(function()
+    espSettings.colorMode = (espSettings.colorMode == "Rarity") and "Static" or "Rarity"
+    ColorModeBtn.Text = "Color: " .. espSettings.colorMode
+    setStatus("ESP color mode: " .. espSettings.colorMode, C.purple)
+end)
+local SizeBtn = smallBtn(ModeRow, "Size: 1x", 82)
+SizeBtn.MouseButton1Click:Connect(function()
+    local vals = {1, 1.25, 1.5, 0.75}
+    local idx = 1
+    for i, v in ipairs(vals) do if espSettings.boxScale == v then idx = i break end end
+    espSettings.boxScale = vals[(idx % #vals) + 1]
+    SizeBtn.Text = "Size: " .. tostring(espSettings.boxScale) .. "x"
+end)
+local SortBtn = smallBtn(ModeRow, "Sort: Distance", 116)
+SortBtn.MouseButton1Click:Connect(function()
+    local vals = {"Distance", "Rarity", "Weight"}
+    local idx = 1
+    for i, v in ipairs(vals) do if espSettings.sortMode == v then idx = i break end end
+    espSettings.sortMode = vals[(idx % #vals) + 1]
+    SortBtn.Text = "Sort: " .. espSettings.sortMode
+    if rebuildEggList then rebuildEggList() end
+end)
+local MaxDistBtn = smallBtn(ModeRow, "Max: ∞", 70)
+MaxDistBtn.MouseButton1Click:Connect(function()
+    local vals = {0, 50, 100, 250, 500}
+    local idx = 1
+    for i, v in ipairs(vals) do if espSettings.maxDistance == v then idx = i break end end
+    espSettings.maxDistance = vals[(idx % #vals) + 1]
+    MaxDistBtn.Text = espSettings.maxDistance == 0 and "Max: ∞" or ("Max: " .. espSettings.maxDistance)
+    if rebuildEggList then rebuildEggList() end
+end)
 
 -- Section: Active List
 sectionLbl(PESP, "ACTIVE EGG LIST")
@@ -1602,54 +1787,79 @@ EmptyLbl.Font = Enum.Font.Gotham
 EmptyLbl.ZIndex = 106
 EmptyLbl.Parent = EggListScroll
 
-local function rebuildEggList()
-    -- Clear existing rows (not EmptyLbl)
+rebuildEggList = function()
     for _, c in ipairs(EggListScroll:GetChildren()) do
-        if c:IsA("Frame") then c:Destroy() end
+        if c:IsA("TextButton") or c:IsA("Frame") then c:Destroy() end
     end
 
-    local count = 0
+    local rows = {}
+    local search = espSettings.searchText or ""
     for id, object in pairs(activeEggs) do
-        count += 1
-        local eggName = object:GetAttribute("EggName") or "?"
-        local petName = (eggPets and eggPets[id]) or "?"
-        local rarityLabel, rarityColor = getRarityLabel(eggName, petName)
-        local wtText = buildWeightText(id, eggName, petName)
-        local dist = 0
-        pcall(function()
-            local _, _, root = getCharacter()
-            if root then
-                dist = math.floor((root.Position - object:GetPivot().Position).Magnitude)
+        if object and object:IsDescendantOf(workspace) then
+            local eggName = tostring(object:GetAttribute("EggName") or "?")
+            local petName = tostring((eggPets and eggPets[id]) or "?")
+            local rarityLabel, rarityColor = getRarityLabel(eggName, petName)
+            local dist = getEggDistance(object)
+            local wtText = buildWeightText(id, eggName, petName)
+            local matchesRarity = (espSettings.rarityFilter == "All" or rarityLabel == espSettings.rarityFilter)
+            local matchesSearch = (search == "" or eggName:lower():find(search, 1, true) or petName:lower():find(search, 1, true))
+            local matchesDistance = (espSettings.maxDistance == 0 or dist <= espSettings.maxDistance)
+            if matchesRarity and matchesSearch and matchesDistance then
+                table.insert(rows, {
+                    id = id,
+                    object = object,
+                    eggName = eggName,
+                    petName = petName,
+                    rarityLabel = rarityLabel,
+                    rarityColor = rarityColor,
+                    dist = dist,
+                    wtText = wtText,
+                    rank = RARITY_RANK[rarityLabel] or 0,
+                    weight = tonumber((wtText:match("([%d%.]+)"))) or 0,
+                })
             end
-        end)
+        end
+    end
 
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 38)
+    table.sort(rows, function(a, b)
+        if espSettings.sortMode == "Rarity" then
+            if a.rank == b.rank then return a.dist < b.dist end
+            return a.rank > b.rank
+        elseif espSettings.sortMode == "Weight" then
+            if a.weight == b.weight then return a.dist < b.dist end
+            return a.weight > b.weight
+        end
+        return a.dist < b.dist
+    end)
+
+    for count, data in ipairs(rows) do
+        local row = Instance.new("TextButton")
+        row.Size = UDim2.new(1, 0, 0, 42)
         row.BackgroundColor3 = C.card
         row.BorderSizePixel = 0
+        row.Text = ""
+        row.AutoButtonColor = true
         row.ZIndex = 106
         row.LayoutOrder = count
         row.Parent = EggListScroll
         corner(row, 6)
 
-        -- Rarity accent left
         local accent = Instance.new("Frame")
         accent.Size = UDim2.new(0, 3, 1, -8)
         accent.Position = UDim2.new(0, 0, 0, 4)
-        accent.BackgroundColor3 = rarityColor
+        accent.BackgroundColor3 = data.rarityColor
         accent.BackgroundTransparency = 0.2
         accent.BorderSizePixel = 0
         accent.ZIndex = 107
         accent.Parent = row
         corner(accent, 2)
 
-        -- Pet name
         local petL = Instance.new("TextLabel")
-        petL.Size = UDim2.new(1, -130, 0, 16)
+        petL.Size = UDim2.new(1, -142, 0, 16)
         petL.Position = UDim2.new(0, 12, 0, 4)
         petL.BackgroundTransparency = 1
-        petL.Text = petName
-        petL.TextColor3 = rarityColor
+        petL.Text = data.petName
+        petL.TextColor3 = data.rarityColor
         petL.TextSize = 11
         petL.Font = Enum.Font.GothamBold
         petL.TextXAlignment = Enum.TextXAlignment.Left
@@ -1657,12 +1867,11 @@ local function rebuildEggList()
         petL.ZIndex = 107
         petL.Parent = row
 
-        -- Egg name
         local eggL = Instance.new("TextLabel")
-        eggL.Size = UDim2.new(1, -130, 0, 12)
+        eggL.Size = UDim2.new(1, -142, 0, 12)
         eggL.Position = UDim2.new(0, 12, 0, 22)
         eggL.BackgroundTransparency = 1
-        eggL.Text = eggName
+        eggL.Text = data.eggName .. "  •  " .. data.rarityLabel
         eggL.TextColor3 = C.textDim
         eggL.TextSize = 9
         eggL.Font = Enum.Font.Gotham
@@ -1670,12 +1879,11 @@ local function rebuildEggList()
         eggL.ZIndex = 107
         eggL.Parent = row
 
-        -- Weight
         local wtL = Instance.new("TextLabel")
-        wtL.Size = UDim2.new(0, 80, 0, 14)
-        wtL.Position = UDim2.new(1, -86, 0, 4)
+        wtL.Size = UDim2.new(0, 92, 0, 14)
+        wtL.Position = UDim2.new(1, -98, 0, 4)
         wtL.BackgroundTransparency = 1
-        wtL.Text = wtText
+        wtL.Text = data.wtText
         wtL.TextColor3 = Color3.fromRGB(150,220,255)
         wtL.TextSize = 9
         wtL.Font = Enum.Font.GothamBold
@@ -1683,12 +1891,11 @@ local function rebuildEggList()
         wtL.ZIndex = 107
         wtL.Parent = row
 
-        -- Distance
         local distL = Instance.new("TextLabel")
-        distL.Size = UDim2.new(0, 80, 0, 12)
-        distL.Position = UDim2.new(1, -86, 0, 22)
+        distL.Size = UDim2.new(0, 92, 0, 12)
+        distL.Position = UDim2.new(1, -98, 0, 22)
         distL.BackgroundTransparency = 1
-        distL.Text = dist .. "m away"
+        distL.Text = data.dist .. "m • tap TP"
         distL.TextColor3 = C.textFaint
         distL.TextSize = 8
         distL.Font = Enum.Font.Gotham
@@ -1696,17 +1903,16 @@ local function rebuildEggList()
         distL.ZIndex = 107
         distL.Parent = row
 
-        -- Rarity badge
-        local badge = Instance.new("TextLabel")
-        badge.Size = UDim2.new(0, 56, 0, 14)
-        badge.Position = UDim2.new(1, -86, 0.5, -7)
-        badge.Visible = false -- hidden since already colored
-        badge.ZIndex = 107
-        badge.Parent = row
+        row.MouseButton1Click:Connect(function()
+            local ok, msg = teleportToPos(data.object:GetPivot().Position)
+            setStatus(ok and ("Teleported to egg: " .. data.petName) or msg, ok and C.purple or C.red)
+            pushLog(ok and "ESP" or "ERR", "Egg TP → " .. data.petName .. " / " .. data.eggName, ok and C.purple or C.red)
+        end)
     end
 
-    EmptyLbl.Visible = (count == 0)
-    ActiveCountLbl.Text = tostring(count)
+    EmptyLbl.Visible = (#rows == 0)
+    EmptyLbl.Text = espEnabled and "No eggs match current filters" or "No active eggs — enable ESP first"
+    ActiveCountLbl.Text = tostring(#rows)
     EggListScroll.CanvasSize = UDim2.new(0, 0, 0, EggListLayout.AbsoluteContentSize.Y + 8)
 end
 
@@ -1724,12 +1930,45 @@ addEsp = function(object)
     end
 end
 
--- Refresh button
-local RefreshBtn = actionBtn(PESP, "↺ Refresh List", C.surface, 28)
-stroke(RefreshBtn, C.border, 1, 0)
+local EspActionRow = Instance.new("Frame")
+EspActionRow.Size = UDim2.new(1, 0, 0, 28)
+EspActionRow.BackgroundTransparency = 1
+EspActionRow.ZIndex = 104
+EspActionRow.Parent = PESP
+local EARLayout = Instance.new("UIListLayout")
+EARLayout.FillDirection = Enum.FillDirection.Horizontal
+EARLayout.SortOrder = Enum.SortOrder.LayoutOrder
+EARLayout.Padding = UDim.new(0, 6)
+EARLayout.Parent = EspActionRow
+
+local RefreshBtn = smallBtn(EspActionRow, "↺ Refresh", 84)
+local RescanBtn = smallBtn(EspActionRow, "Scan Eggs", 86)
+local CopyEggBtn = smallBtn(EspActionRow, "Copy List", 84)
+
 RefreshBtn.MouseButton1Click:Connect(function()
-    rebuildEggList()
+    if rebuildEggList then rebuildEggList() end
     setStatus("Egg list refreshed", C.purple)
+end)
+RescanBtn.MouseButton1Click:Connect(function()
+    if espEnabled then
+        for _, obj in ipairs(CollectionService:GetTagged("PetEggServer")) do task.spawn(addEsp, obj) end
+        if rebuildEggList then rebuildEggList() end
+        setStatus("ESP rescan complete", C.purple)
+    else
+        setStatus("Enable ESP before rescanning", C.yellow)
+    end
+end)
+CopyEggBtn.MouseButton1Click:Connect(function()
+    local lines = {}
+    for id, object in pairs(activeEggs) do
+        local eggName = tostring(object:GetAttribute("EggName") or "?")
+        local petName = tostring((eggPets and eggPets[id]) or "?")
+        local rarity = getRarityLabel(eggName, petName)
+        table.insert(lines, string.format("%s | %s | %s | %dm", petName, eggName, rarity, getEggDistance(object)))
+    end
+    pcall(function() setclipboard(table.concat(lines, "\n")) end)
+    pushLog("ESP", "Copied " .. #lines .. " egg rows", C.purple)
+    setStatus("Copied egg list", C.purple)
 end)
 
 -- Auto-refresh list every 2s when ESP active
@@ -1896,7 +2135,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.0 loaded — Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1 loaded — Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready — go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.0 initialized")
+print("[LowHub] v4.1 initialized")
