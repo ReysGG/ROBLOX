@@ -90,20 +90,36 @@ end
 
 local function getGroundedCFrameNear(targetCFrame, distanceBack)
     distanceBack = distanceBack or 6
+
     local backPosition = (targetCFrame * CFrame.new(0, 0, distanceBack)).Position
-    local rayOrigin = backPosition + Vector3.new(0, 50, 0)
-    local rayDirection = Vector3.new(0, -200, 0)
+
+    local rayOrigin = Vector3.new(backPosition.X, backPosition.Y + 100, backPosition.Z)
+    local rayDirection = Vector3.new(0, -300, 0)
+
     local raycastParams = RaycastParams.new()
     raycastParams.FilterType = Enum.RaycastFilterType.Exclude
-    raycastParams.IgnoreWater = false
+    raycastParams.IgnoreWater = true
+
+    local character = Player.Character
+    if character then
+        raycastParams.FilterDescendantsInstances = { character }
+    end
+
     local result = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+
     local groundPosition
     if result then
         groundPosition = result.Position + Vector3.new(0, 3, 0)
+        log("Raycast hit: " .. result.Instance:GetFullName() .. " at Y=" .. tostring(math.floor(result.Position.Y)))
     else
-        groundPosition = backPosition + Vector3.new(0, 3, 0)
+        groundPosition = Vector3.new(backPosition.X, targetCFrame.Position.Y + 3, backPosition.Z)
+        log("Raycast miss — fallback ke Y NPC")
     end
-    return CFrame.new(groundPosition, targetCFrame.Position)
+
+    return CFrame.new(
+        groundPosition,
+        Vector3.new(targetCFrame.Position.X, groundPosition.Y, targetCFrame.Position.Z)
+    )
 end
 
 local function teleportToHoneySeedNPC()
