@@ -1,4 +1,4 @@
--- LOW HUB v4.1.34 - Grow a Garden
+-- LOW HUB v4.1.35 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.34 boot"
+BootBtn.Text = "LowHub v4.1.35 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.34 start")
+bootStatus("LowHub v4.1.35 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.34"
+VerLbl.Text = "v4.1.35"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1891,7 +1891,8 @@ end
 function getPlantPosition(index)
     local _, _, root = getCharacter()
     if not root then return Vector3.new(0, 0, 0), "no root" end
-    local searchRoot = getMyFarmFolder() or workspace
+    local searchRoot = getMyFarmFolder()
+    if not searchRoot then return Vector3.new(0, 0, 0), "owned farm not found" end
     local best, bestDist = nil, 220
     for _, obj in ipairs(searchRoot:GetDescendants()) do
         if obj:IsA("BasePart") then
@@ -1959,6 +1960,7 @@ function plantSelectedSeedBatch()
         if not autoFarmEnabled then return false, "stopped", planted end
         local pos
         pos, posSource = getPlantPosition(i)
+        if posSource == "owned farm not found" then return false, posSource, planted end
         local ok = pcall(function() remote:FireServer(pos, seedName) end)
         if ok then planted = planted + 1 end
         if i == count or i == 1 or i == 6 or i == 12 then
@@ -1988,9 +1990,11 @@ end
 function findHarvestTarget(seedName)
     local _, _, root = getCharacter()
     if not root then return nil end
+    local farmRoot = getMyFarmFolder()
+    if not farmRoot then return nil end
     local needle = seedName:lower()
-    local best, bestDist = nil, 120
-    for _, obj in ipairs(workspace:GetDescendants()) do
+    local best, bestDist = nil, 160
+    for _, obj in ipairs(farmRoot:GetDescendants()) do
         if (obj:IsA("Model") or obj:IsA("BasePart")) and not isOwnCharacterOrTool(obj) then
             local n = obj.Name:lower()
             local farmParent = obj:FindFirstAncestor("Farm") or obj:FindFirstAncestor("Plants") or obj:FindFirstAncestor("Fruits")
@@ -2762,7 +2766,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.34"
+    FallbackBtn.Text = "LowHub v4.1.35"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2826,7 +2830,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.34 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.35 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.34 initialized")
+print("[LowHub] v4.1.35 initialized")
