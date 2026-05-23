@@ -1,4 +1,4 @@
--- LOW HUB v4.1.38 - Grow a Garden
+-- LOW HUB v4.1.39 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.38 boot"
+BootBtn.Text = "LowHub v4.1.39 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.38 start")
+bootStatus("LowHub v4.1.39 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.38"
+VerLbl.Text = "v4.1.39"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1994,21 +1994,28 @@ function isOwnCharacterOrTool(obj)
     return false
 end
 
+function isCollectPrompt(prompt)
+    if not prompt or not prompt:IsA("ProximityPrompt") then return false end
+    if not prompt.Enabled then return false end
+    if tostring(prompt.ActionText):lower() ~= "collect" then return false end
+    local fruits = prompt:FindFirstAncestor("Fruits")
+    if not fruits then return false end
+    return true
+end
+
 function findHarvestTarget(seedName)
     local _, _, root = getCharacter()
     if not root then return nil end
     local farmRoot = getMyFarmFolder()
     if not farmRoot then return nil end
     local needle = seedName and seedName:lower() or ""
-    local best, bestDist = nil, 160
+    local best, bestDist = nil, 9999
     for _, obj in ipairs(farmRoot:GetDescendants()) do
-        if (obj:IsA("Model") or obj:IsA("BasePart")) and not isOwnCharacterOrTool(obj) then
-            local n = obj.Name:lower()
-            local farmParent = obj:FindFirstAncestor("Farm") or obj:FindFirstAncestor("Plants") or obj:FindFirstAncestor("Fruits")
-            local harvestName = n:find("fruit", 1, true) or n:find("crop", 1, true) or n:find("plant", 1, true)
-            if needle ~= "" then harvestName = harvestName or n:find(needle, 1, true) end
-            if farmParent and harvestName and not n:find("seed", 1, true) and not n:find("can_plant", 1, true) then
-                local cf = getInstanceCFrame(obj)
+        if isCollectPrompt(obj) then
+            local fruitModel = obj:FindFirstAncestorOfClass("Model")
+            local n = fruitModel and fruitModel.Name:lower() or obj.Parent.Name:lower()
+            if needle == "" or n:find(needle, 1, true) then
+                local cf = getInstanceCFrame(obj.Parent)
                 if cf then
                     local dist = (root.Position - cf.Position).Magnitude
                     if dist < bestDist then
@@ -2024,31 +2031,17 @@ end
 
 function harvestTargetOnce(target)
     if not autoFarmEnabled then return false, "stopped" end
-    if not target then return false, "harvest target not found" end
-    local cf = getInstanceCFrame(target)
+    if not isCollectPrompt(target) then return false, "collect prompt not found" end
+    local cf = getInstanceCFrame(target.Parent)
     pcall(function()
         local ch, _, root = getCharacter()
         if ch and root and cf then ch:PivotTo(cf + Vector3.new(0, 2, 0)) end
     end)
-    task.wait(0.3)
+    task.wait(0.2)
     if not autoFarmEnabled then return false, "stopped" end
-    local okAny = false
-    for _, d in ipairs(target:GetDescendants()) do
-        if d:IsA("ProximityPrompt") and type(fireproximityprompt) == "function" then
-            okAny = pcall(function() fireproximityprompt(d) end) or okAny
-        elseif d:IsA("ClickDetector") and type(fireclickdetector) == "function" then
-            okAny = pcall(function() fireclickdetector(d) end) or okAny
-        end
-    end
-    local remote = ReplicatedStorage:FindFirstChild("GameEvents") and ReplicatedStorage.GameEvents:FindFirstChild("HarvestRemote")
-    if remote then
-        if remote:IsA("RemoteFunction") then
-            okAny = pcall(function() remote:InvokeServer(target) end) or okAny
-        else
-            okAny = pcall(function() remote:FireServer(target) end) or okAny
-        end
-    end
-    return okAny, okAny and ("harvest attempted: " .. target.Name) or "harvest failed"
+    if type(fireproximityprompt) ~= "function" then return false, "fireproximityprompt unavailable" end
+    local ok = pcall(function() fireproximityprompt(target) end)
+    return ok, ok and ("collected: " .. target.Parent.Name) or "collect failed"
 end
 
 function harvestSelectedSeedOnce()
@@ -2059,14 +2052,14 @@ end
 function harvestReadyBatch()
     local tries = 0
     local done = 0
-    while autoFarmEnabled and tries < 20 do
+    while autoFarmEnabled and tries < 60 do
         local target = findHarvestTarget(nil)
         if not target then break end
         tries = tries + 1
-        farmSetPhase("harvest farm", target.Name, C.green)
+        farmSetPhase("collect fruit", target.Parent.Parent.Name .. " #" .. tostring(tries), C.green)
         local ok = harvestTargetOnce(target)
         if ok then done = done + 1 end
-        task.wait(0.5)
+        task.wait(0.25)
     end
     return done, tries
 end
@@ -2789,7 +2782,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.38"
+    FallbackBtn.Text = "LowHub v4.1.39"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2853,7 +2846,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.38 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.39 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.38 initialized")
+print("[LowHub] v4.1.39 initialized")
