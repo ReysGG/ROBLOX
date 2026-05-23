@@ -1,4 +1,4 @@
--- LOW HUB v4.1.37 - Grow a Garden
+-- LOW HUB v4.1.38 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.37 boot"
+BootBtn.Text = "LowHub v4.1.38 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.37 start")
+bootStatus("LowHub v4.1.38 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.37"
+VerLbl.Text = "v4.1.38"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1999,13 +1999,14 @@ function findHarvestTarget(seedName)
     if not root then return nil end
     local farmRoot = getMyFarmFolder()
     if not farmRoot then return nil end
-    local needle = seedName:lower()
+    local needle = seedName and seedName:lower() or ""
     local best, bestDist = nil, 160
     for _, obj in ipairs(farmRoot:GetDescendants()) do
         if (obj:IsA("Model") or obj:IsA("BasePart")) and not isOwnCharacterOrTool(obj) then
             local n = obj.Name:lower()
             local farmParent = obj:FindFirstAncestor("Farm") or obj:FindFirstAncestor("Plants") or obj:FindFirstAncestor("Fruits")
-            local harvestName = n:find(needle, 1, true) or n:find("fruit", 1, true) or n:find("crop", 1, true) or n:find("plant", 1, true)
+            local harvestName = n:find("fruit", 1, true) or n:find("crop", 1, true) or n:find("plant", 1, true)
+            if needle ~= "" then harvestName = harvestName or n:find(needle, 1, true) end
             if farmParent and harvestName and not n:find("seed", 1, true) and not n:find("can_plant", 1, true) then
                 local cf = getInstanceCFrame(obj)
                 if cf then
@@ -2021,10 +2022,8 @@ function findHarvestTarget(seedName)
     return best
 end
 
-function harvestSelectedSeedOnce()
+function harvestTargetOnce(target)
     if not autoFarmEnabled then return false, "stopped" end
-    local seedName = seedOptions[selectedSeedIndex]
-    local target = findHarvestTarget(seedName)
     if not target then return false, "harvest target not found" end
     local cf = getInstanceCFrame(target)
     pcall(function()
@@ -2052,15 +2051,20 @@ function harvestSelectedSeedOnce()
     return okAny, okAny and ("harvest attempted: " .. target.Name) or "harvest failed"
 end
 
+function harvestSelectedSeedOnce()
+    if not autoFarmEnabled then return false, "stopped" end
+    return harvestTargetOnce(findHarvestTarget(seedOptions[selectedSeedIndex]))
+end
+
 function harvestReadyBatch()
     local tries = 0
     local done = 0
     while autoFarmEnabled and tries < 20 do
-        local target = findHarvestTarget(seedOptions[selectedSeedIndex])
+        local target = findHarvestTarget(nil)
         if not target then break end
         tries = tries + 1
-        farmSetPhase("harvest all", target.Name, C.green)
-        local ok = harvestSelectedSeedOnce()
+        farmSetPhase("harvest farm", target.Name, C.green)
+        local ok = harvestTargetOnce(target)
         if ok then done = done + 1 end
         task.wait(0.5)
     end
@@ -2068,6 +2072,18 @@ function harvestReadyBatch()
 end
 
 function autoFarmStep()
+    farmSetPhase("check harvest", "owned farm", C.yellow)
+    local done, tries = harvestReadyBatch()
+    if done > 0 then
+        farmSetPhase("harvest done", tostring(done) .. "/" .. tostring(tries), C.green)
+        task.wait(0.8)
+        if autoFarmEnabled then
+            farmSetPhase("sell", "inventory", C.yellow)
+            sellInventoryOnce()
+        end
+        task.wait(2)
+        return
+    end
     local seedName = seedOptions[selectedSeedIndex]
     local plantOk, plantMsg, planted = plantSelectedSeedBatch()
     if not plantOk then
@@ -2076,12 +2092,12 @@ function autoFarmStep()
         return
     end
     local waited = 0
-    local target = findHarvestTarget(seedName)
+    local target = findHarvestTarget(nil)
     farmSetPhase("wait harvest", "planted " .. tostring(planted), C.yellow)
     while autoFarmEnabled and waited < 60 and not target do
         task.wait(5)
         waited = waited + 5
-        target = findHarvestTarget(seedName)
+        target = findHarvestTarget(nil)
         if waited == 15 or waited == 30 or waited == 60 then
             farmSetPhase("wait harvest", tostring(waited) .. "s after " .. tostring(planted) .. " plants", C.yellow)
         end
@@ -2092,7 +2108,7 @@ function autoFarmStep()
     else
         farmSetPhase("harvest timeout", seedName, C.yellow)
     end
-    local done, tries = harvestReadyBatch()
+    done, tries = harvestReadyBatch()
     farmSetPhase(done > 0 and "harvest done" or "harvest miss", tostring(done) .. "/" .. tostring(tries), done > 0 and C.green or C.yellow)
     task.wait(0.8)
     if autoFarmEnabled then
@@ -2773,7 +2789,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.37"
+    FallbackBtn.Text = "LowHub v4.1.38"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2837,7 +2853,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.37 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.38 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.37 initialized")
+print("[LowHub] v4.1.38 initialized")
