@@ -1,4 +1,4 @@
--- LOW HUB v4.1.31 - Grow a Garden
+-- LOW HUB v4.1.32 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.31 boot"
+BootBtn.Text = "LowHub v4.1.32 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.31 start")
+bootStatus("LowHub v4.1.32 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.31"
+VerLbl.Text = "v4.1.32"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1476,8 +1476,8 @@ local seedOptions = {
 local selectedSeedIndex = 1
 farmSeedModeIndex = 1
 farmBuyModeIndex = 1
-farmSeedModes = { "Selected", "Priority", "Any" }
-farmBuyModes = { "OFF", "Selected", "Priority" }
+farmSeedModes = { "Selected", "Best Owned", "Any Owned" }
+farmBuyModes = { "OFF", "Same Seed", "Best Affordable" }
 local autoBuyEnabled = false
 local autoBuyThread = nil
 local autoSellEnabled = false
@@ -1505,9 +1505,9 @@ FarmModeLayout.CellSize = UDim2.new(0, 132, 0, 30)
 FarmModeLayout.CellPadding = UDim2.new(0, 8, 0, 7)
 FarmModeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 FarmModeLayout.Parent = FarmModeGrid
-FarmSeedModeBtn = actionBtn(FarmModeGrid, "Seed: Selected", C.surface, 30)
+FarmSeedModeBtn = actionBtn(FarmModeGrid, "Plant: Selected", C.surface, 30)
 FarmBuyModeBtn = actionBtn(FarmModeGrid, "Buy: OFF", C.surface, 30)
-FarmPriorityBtn = actionBtn(FarmModeGrid, "Priority List", C.surface, 30)
+FarmPriorityBtn = actionBtn(FarmModeGrid, "Best Setup", C.surface, 30)
 FarmAnyBtn = actionBtn(FarmModeGrid, "Any Owned", C.surface, 30)
 
 AutoFarmBtn = actionBtn(PFARM, "Auto Farm: OFF", C.surface, 32)
@@ -1724,20 +1724,68 @@ function farmFindSeedByMode()
     return selected, nil
 end
 
-function farmShopHasSeed(seedName)
+function farmParseMoneyText(txt)
+    local s = tostring(txt or ""):gsub(",", ""):gsub(" ", "")
+    local num = tonumber(s:match("[%d%.]+")) or 0
+    local up = s:upper()
+    if up:find("T", 1, true) then num = num * 1000000000000
+    elseif up:find("B", 1, true) then num = num * 1000000000
+    elseif up:find("M", 1, true) then num = num * 1000000
+    elseif up:find("K", 1, true) then num = num * 1000 end
+    return num
+end
+
+function farmGetMoney()
+    local ls = Player:FindFirstChild("leaderstats")
+    local val = ls and ls:FindFirstChild("Sheckles")
+    return val and farmParseMoneyText(val.Value) or 0
+end
+
+function farmGetShopItem(seedName)
     local gui = PlayerGui:FindFirstChild("Seed_Shop")
     local shop = gui and gui:FindFirstChild("Frame")
     local scroll = shop and shop:FindFirstChild("ScrollingFrame")
-    local item = scroll and scroll:FindFirstChild(seedName)
+    return scroll and scroll:FindFirstChild(seedName) or nil
+end
+
+function farmGetSeedCost(seedName)
+    local item = farmGetShopItem(seedName)
+    if not item then return 0 end
+    local best = 0
+    for _, d in ipairs(item:GetDescendants()) do
+        if d.Name == "TEXT" or d.Name == "Cost_Text" then
+            local ok, txt = pcall(function() return d.Text end)
+            if ok then
+                local cost = farmParseMoneyText(txt)
+                if cost > best then best = cost end
+            end
+        end
+    end
+    return best
+end
+
+function farmShopHasSeed(seedName)
+    local item = farmGetShopItem(seedName)
     local frame = item and item:FindFirstChild("Frame")
-    return frame and frame:FindFirstChild("Sheckles_Buy") ~= nil
+    local buy = frame and frame:FindFirstChild("Sheckles_Buy")
+    local stock = frame and frame:FindFirstChild("Value")
+    if not stock then stock = item and item:FindFirstChild("Value") end
+    return buy ~= nil and ((not stock) or tonumber(stock.Value) == nil or tonumber(stock.Value) > 0)
+end
+
+function farmCanAffordSeed(seedName)
+    local cost = farmGetSeedCost(seedName)
+    return farmShopHasSeed(seedName) and cost > 0 and farmGetMoney() >= cost
 end
 
 function farmBuyByMode()
     if farmBuyModeIndex == 1 then return false end
-    if farmBuyModeIndex == 2 then return buySelectedSeedOnce() end
+    if farmBuyModeIndex == 2 then
+        if farmCanAffordSeed(seedOptions[selectedSeedIndex]) then return buySelectedSeedOnce() end
+        return false
+    end
     for _, name in ipairs(farmPrioritySeeds()) do
-        if farmShopHasSeed(name) then
+        if farmCanAffordSeed(name) then
             farmSetSelectedSeed(name)
             return buySelectedSeedOnce()
         end
@@ -2034,8 +2082,8 @@ end)
 FarmSeedModeBtn.MouseButton1Click:Connect(function()
     farmSeedModeIndex = farmSeedModeIndex + 1
     if farmSeedModeIndex > #farmSeedModes then farmSeedModeIndex = 1 end
-    FarmSeedModeBtn.Text = "Seed: " .. farmSeedModes[farmSeedModeIndex]
-    FarmStatusLbl.Text = "Auto Farm seed: " .. farmSeedModes[farmSeedModeIndex]
+    FarmSeedModeBtn.Text = "Plant: " .. farmSeedModes[farmSeedModeIndex]
+    FarmStatusLbl.Text = "Auto Farm plant: " .. farmSeedModes[farmSeedModeIndex]
 end)
 
 FarmBuyModeBtn.MouseButton1Click:Connect(function()
@@ -2049,15 +2097,15 @@ end)
 FarmPriorityBtn.MouseButton1Click:Connect(function()
     farmSeedModeIndex = 2
     farmBuyModeIndex = 3
-    FarmSeedModeBtn.Text = "Seed: Priority"
-    FarmBuyModeBtn.Text = "Buy: Priority"
+    FarmSeedModeBtn.Text = "Plant: Best Owned"
+    FarmBuyModeBtn.Text = "Buy: Best Affordable"
     FarmBuyModeBtn.BackgroundColor3 = C.greenDark
-    FarmStatusLbl.Text = "Auto Farm: priority seed and buy"
+    FarmStatusLbl.Text = "Auto Farm: best owned + best affordable buy"
 end)
 
 FarmAnyBtn.MouseButton1Click:Connect(function()
     farmSeedModeIndex = 3
-    FarmSeedModeBtn.Text = "Seed: Any"
+    FarmSeedModeBtn.Text = "Plant: Any Owned"
     FarmStatusLbl.Text = "Auto Farm: any owned seed"
 end)
 
@@ -2690,7 +2738,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.31"
+    FallbackBtn.Text = "LowHub v4.1.32"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2754,7 +2802,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.31 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.32 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.31 initialized")
+print("[LowHub] v4.1.32 initialized")
