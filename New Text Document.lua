@@ -1,4 +1,4 @@
--- LOW HUB v4.1.42 - Grow a Garden
+-- LOW HUB v4.1.43 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.42 boot"
+BootBtn.Text = "LowHub v4.1.43 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.42 start")
+bootStatus("LowHub v4.1.43 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.42"
+VerLbl.Text = "v4.1.43"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1478,6 +1478,7 @@ farmSeedModeIndex = 2
 farmBuyModeIndex = 3
 farmBuyBatchCount = 5
 farmPlantCursor = 1
+farmHarvestSkip = {}
 farmSeedModes = { "Selected", "Best Owned", "Any Owned" }
 farmBuyModes = { "OFF", "Same Seed", "Best Affordable" }
 local autoBuyEnabled = false
@@ -2084,6 +2085,97 @@ function isCollectPrompt(prompt)
     return true
 end
 
+function getCollectPromptCFrame(prompt)
+    if not prompt then return nil end
+    local parent = prompt.Parent
+    if parent then
+        if parent:IsA("Attachment") then return parent.WorldCFrame end
+        if parent:IsA("BasePart") then return parent.CFrame end
+    end
+    local part = prompt:FindFirstAncestorWhichIsA("BasePart")
+    if part then return part.CFrame end
+    local model = prompt:FindFirstAncestorOfClass("Model")
+    if model then return model:GetPivot() end
+    return getInstanceCFrame(parent)
+end
+
+function getCollectPromptName(prompt)
+    if not prompt then return "fruit" end
+    local model = prompt:FindFirstAncestorOfClass("Model")
+    if model then return model.Name end
+    if prompt.Parent then return prompt.Parent.Name end
+    return "fruit"
+end
+
+function isHarvestTargetSkipped(prompt)
+    if not farmHarvestSkip then farmHarvestSkip = {} end
+    local untilTime = farmHarvestSkip[prompt]
+    if not untilTime then return false end
+    if os.clock() >= untilTime or not prompt.Parent then
+        farmHarvestSkip[prompt] = nil
+        return false
+    end
+    return true
+end
+
+function skipHarvestTarget(prompt, seconds)
+    if not farmHarvestSkip then farmHarvestSkip = {} end
+    if prompt then farmHarvestSkip[prompt] = os.clock() + (seconds or 5) end
+end
+
+function moveNearCollectPrompt(prompt)
+    local cf = getCollectPromptCFrame(prompt)
+    if not cf then return false, "collect position missing" end
+    local ch, hum, root = getCharacter()
+    if not ch or not root then return false, "character missing" end
+    local maxDist = tonumber(prompt.MaxActivationDistance) or 10
+    if maxDist < 4 then maxDist = 4 end
+    local offsetDist = math.min(3, math.max(1.5, maxDist * 0.35))
+    local flat = Vector3.new(root.Position.X - cf.Position.X, 0, root.Position.Z - cf.Position.Z)
+    if flat.Magnitude < 0.5 then
+        local look = cf.LookVector
+        flat = Vector3.new(look.X, 0, look.Z)
+    end
+    if flat.Magnitude < 0.5 then flat = Vector3.new(1, 0, 0) end
+    local dir = flat.Unit
+    local pos = cf.Position + (dir * offsetDist) + Vector3.new(0, 1.6, 0)
+    local lookAt = Vector3.new(cf.Position.X, pos.Y, cf.Position.Z)
+    pcall(function()
+        if hum then
+            hum.Sit = false
+            hum.PlatformStand = false
+            pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+        end
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+        ch:PivotTo(CFrame.new(pos, lookAt))
+        root.CFrame = CFrame.new(pos, lookAt)
+        root.AssemblyLinearVelocity = Vector3.zero
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+    task.wait(0.55)
+    local dist = (root.Position - cf.Position).Magnitude
+    if dist > (maxDist - 0.5) then
+        local closePos = cf.Position + Vector3.new(0, 1.3, 0)
+        pcall(function()
+            if hum then
+                hum.Sit = false
+                hum.PlatformStand = false
+                pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+            end
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+            ch:PivotTo(CFrame.new(closePos))
+            root.CFrame = CFrame.new(closePos)
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+        end)
+        task.wait(0.4)
+        dist = (root.Position - cf.Position).Magnitude
+    end
+    return dist <= maxDist, "dist " .. tostring(math.floor(dist * 10) / 10)
+end
+
 function findHarvestTarget(seedName)
     local _, _, root = getCharacter()
     if not root then return nil end
@@ -2092,11 +2184,11 @@ function findHarvestTarget(seedName)
     local needle = seedName and seedName:lower() or ""
     local best, bestDist = nil, 9999
     for _, obj in ipairs(farmRoot:GetDescendants()) do
-        if isCollectPrompt(obj) then
+        if isCollectPrompt(obj) and not isHarvestTargetSkipped(obj) then
             local fruitModel = obj:FindFirstAncestorOfClass("Model")
             local n = fruitModel and fruitModel.Name:lower() or obj.Parent.Name:lower()
             if needle == "" or n:find(needle, 1, true) then
-                local cf = getInstanceCFrame(obj.Parent)
+                local cf = getCollectPromptCFrame(obj)
                 if cf then
                     local dist = (root.Position - cf.Position).Magnitude
                     if dist < bestDist then
@@ -2113,16 +2205,38 @@ end
 function harvestTargetOnce(target)
     if not autoFarmEnabled then return false, "stopped" end
     if not isCollectPrompt(target) then return false, "collect prompt not found" end
-    local cf = getInstanceCFrame(target.Parent)
-    pcall(function()
-        local ch, _, root = getCharacter()
-        if ch and root and cf then ch:PivotTo(cf + Vector3.new(0, 2, 0)) end
-    end)
-    task.wait(0.2)
+    local moved, moveMsg = moveNearCollectPrompt(target)
+    if not moved then
+        skipHarvestTarget(target, 5)
+        return false, "collect range failed: " .. tostring(moveMsg)
+    end
     if not autoFarmEnabled then return false, "stopped" end
-    if type(fireproximityprompt) ~= "function" then return false, "fireproximityprompt unavailable" end
-    local ok = pcall(function() fireproximityprompt(target) end)
-    return ok, ok and ("collected: " .. target.Parent.Name) or "collect failed"
+    if type(fireproximityprompt) ~= "function" then
+        skipHarvestTarget(target, 5)
+        return false, "fireproximityprompt unavailable"
+    end
+    local targetName = getCollectPromptName(target)
+    local hold = tonumber(target.HoldDuration) or 0
+    local ok = pcall(function()
+        if hold > 0 then
+            fireproximityprompt(target, hold + 0.1)
+        else
+            fireproximityprompt(target)
+        end
+    end)
+    if not ok then
+        ok = pcall(function() fireproximityprompt(target) end)
+    end
+    if not ok then
+        skipHarvestTarget(target, 5)
+        return false, "collect fire failed"
+    end
+    task.wait(math.min(1.2, math.max(0.45, hold + 0.35)))
+    if isCollectPrompt(target) then
+        skipHarvestTarget(target, 5)
+        return false, "collect rejected: " .. tostring(moveMsg)
+    end
+    return true, "collected: " .. targetName
 end
 
 function harvestSelectedSeedOnce()
@@ -2137,9 +2251,10 @@ function harvestReadyBatch()
         local target = findHarvestTarget(nil)
         if not target then break end
         tries = tries + 1
-        farmSetPhase("collect fruit", target.Parent.Parent.Name .. " #" .. tostring(tries), C.green)
-        local ok = harvestTargetOnce(target)
+        farmSetPhase("collect fruit", getCollectPromptName(target) .. " #" .. tostring(tries), C.green)
+        local ok, msg = harvestTargetOnce(target)
         if ok then done = done + 1 end
+        if not ok and msg then pushLog("FARM", msg, C.yellow) end
         task.wait(0.25)
     end
     return done, tries
@@ -2863,7 +2978,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.42"
+    FallbackBtn.Text = "LowHub v4.1.43"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2927,7 +3042,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.42 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.43 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.42 initialized")
+print("[LowHub] v4.1.43 initialized")
