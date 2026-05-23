@@ -1,4 +1,4 @@
--- LOW HUB v4.1.39 - Grow a Garden
+-- LOW HUB v4.1.40 - Grow a Garden
 -- LocalScript | 1 file
 -- Sections: TELEPORT | CONSOLE | EGG ESP | BUILDER | COMING SOON
 
@@ -31,7 +31,7 @@ BootBtn.Size = UDim2.new(0, 150, 0, 34)
 BootBtn.Position = UDim2.new(0, 8, 0, 8)
 BootBtn.BackgroundColor3 = Color3.fromRGB(20, 55, 10)
 BootBtn.BorderSizePixel = 0
-BootBtn.Text = "LowHub v4.1.39 boot"
+BootBtn.Text = "LowHub v4.1.40 boot"
 BootBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 BootBtn.TextSize = 11
 BootBtn.Font = Enum.Font.GothamBold
@@ -45,7 +45,7 @@ local function bootStatus(txt)
     if BootBtn then BootBtn.Text = tostring(txt) end
 end
 
-bootStatus("LowHub v4.1.39 start")
+bootStatus("LowHub v4.1.40 start")
 
 local function getGuiParent()
     local ok = pcall(function()
@@ -788,7 +788,7 @@ local VerLbl = Instance.new("TextLabel")
 VerLbl.Size = UDim2.new(0, 60, 1, 0)
 VerLbl.Position = UDim2.new(0, 115, 0, 0)
 VerLbl.BackgroundTransparency = 1
-VerLbl.Text = "v4.1.39"
+VerLbl.Text = "v4.1.40"
 VerLbl.TextColor3 = C.green
 VerLbl.TextSize = 10
 VerLbl.Font = Enum.Font.GothamBold
@@ -1443,7 +1443,7 @@ local FarmStatusLbl = Instance.new("TextLabel")
 FarmStatusLbl.Size = UDim2.new(1, -20, 0, 28)
 FarmStatusLbl.Position = UDim2.new(0, 10, 0, 30)
 FarmStatusLbl.BackgroundTransparency = 1
-FarmStatusLbl.Text = "Seed: Carrot | Ready"
+FarmStatusLbl.Text = "Auto Farm: Best Setup | Ready"
 FarmStatusLbl.TextColor3 = C.text
 FarmStatusLbl.TextSize = 10
 FarmStatusLbl.Font = Enum.Font.Code
@@ -1474,8 +1474,9 @@ local seedOptions = {
     "Beanstalk",
 }
 local selectedSeedIndex = 1
-farmSeedModeIndex = 1
-farmBuyModeIndex = 1
+farmSeedModeIndex = 2
+farmBuyModeIndex = 3
+farmBuyBatchCount = 5
 farmSeedModes = { "Selected", "Best Owned", "Any Owned" }
 farmBuyModes = { "OFF", "Same Seed", "Best Affordable" }
 local autoBuyEnabled = false
@@ -1505,8 +1506,8 @@ FarmModeLayout.CellSize = UDim2.new(0, 132, 0, 30)
 FarmModeLayout.CellPadding = UDim2.new(0, 8, 0, 7)
 FarmModeLayout.SortOrder = Enum.SortOrder.LayoutOrder
 FarmModeLayout.Parent = FarmModeGrid
-FarmSeedModeBtn = actionBtn(FarmModeGrid, "Plant: Selected", C.surface, 30)
-FarmBuyModeBtn = actionBtn(FarmModeGrid, "Buy: OFF", C.surface, 30)
+FarmSeedModeBtn = actionBtn(FarmModeGrid, "Plant: Best Owned", C.surface, 30)
+FarmBuyModeBtn = actionBtn(FarmModeGrid, "Buy: Best Affordable", C.greenDark, 30)
 FarmPriorityBtn = actionBtn(FarmModeGrid, "Best Setup", C.surface, 30)
 FarmAnyBtn = actionBtn(FarmModeGrid, "Any Owned", C.surface, 30)
 
@@ -1704,6 +1705,59 @@ local function buySelectedSeedOnce()
     return ok
 end
 
+function buySelectedSeedBatch(amount)
+    local seedName = seedOptions[selectedSeedIndex]
+    local target = amount or farmBuyBatchCount or 5
+    if target < 1 then target = 1 end
+    setStatus("Bulk buying " .. seedName .. " x" .. tostring(target) .. "...", C.yellow)
+    pcall(function()
+        local ge = ReplicatedStorage:FindFirstChild("GameEvents")
+        local tp = ge and ge:FindFirstChild("PlayerTeleportTriggered")
+        if tp then
+            tp:FireServer("Seed Shop")
+            task.wait(1.2)
+        else
+            local ch, _, root = getCharacter()
+            if ch and root then
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.AssemblyAngularVelocity = Vector3.zero
+                ch:PivotTo(CFrame.new(36.4, 3.0, -24.6))
+                task.wait(0.4)
+            end
+        end
+    end)
+    task.wait(0.2)
+    local bought = 0
+    local lastMsg = ""
+    for i = 1, target do
+        local ok, msg = pcall(function()
+            local item = farmGetShopItem(seedName)
+            local frame = item and item:FindFirstChild("Frame")
+            local buy = frame and frame:FindFirstChild("Sheckles_Buy")
+            if not buy then error(seedName .. " buy button not found") end
+            if type(firesignal) ~= "function" then error("firesignal unavailable") end
+            if not farmShopHasSeed(seedName) then error("out of stock") end
+            if not farmCanAffordSeed(seedName) then error("not enough sheckles") end
+            firesignal(buy.Activated)
+        end)
+        if ok then
+            bought = bought + 1
+            lastMsg = "bought " .. tostring(bought) .. "/" .. tostring(target)
+            FarmStatusLbl.Text = "Seed: " .. seedName .. " | " .. lastMsg
+            setStatus(lastMsg, C.green)
+            task.wait(0.2)
+        else
+            lastMsg = tostring(msg)
+            break
+        end
+    end
+    local resultText = bought > 0 and ("Bulk buy " .. seedName .. " x" .. tostring(bought)) or ("Bulk buy failed: " .. lastMsg)
+    FarmStatusLbl.Text = "Seed: " .. seedName .. " | " .. resultText
+    setStatus(resultText, bought > 0 and C.green or C.red)
+    pushLog(bought > 0 and "FARM" or "ERR", resultText, bought > 0 and C.green or C.red)
+    return bought > 0, bought
+end
+
 function farmPrioritySeeds()
     return { "Beanstalk", "Cacao", "Pepper", "Mushroom", "Grape", "Mango", "Dragon Fruit", "Cactus", "Coconut", "Bamboo", "Apple", "Pumpkin", "Watermelon", "Corn", "Tomato", "Blueberry", "Strawberry", "Carrot" }
 end
@@ -1789,13 +1843,17 @@ end
 function farmBuyByMode()
     if farmBuyModeIndex == 1 then return false end
     if farmBuyModeIndex == 2 then
-        if farmCanAffordSeed(seedOptions[selectedSeedIndex]) then return buySelectedSeedOnce() end
+        if farmCanAffordSeed(seedOptions[selectedSeedIndex]) then
+            local ok = buySelectedSeedBatch(farmBuyBatchCount)
+            return ok
+        end
         return false
     end
     for _, name in ipairs(farmPrioritySeeds()) do
         if farmCanAffordSeed(name) then
             farmSetSelectedSeed(name)
-            return buySelectedSeedOnce()
+            local ok = buySelectedSeedBatch(farmBuyBatchCount)
+            return ok
         end
     end
     return false
@@ -1896,32 +1954,51 @@ function getMyFarmFolder()
     return nil
 end
 
-function getPlantPosition(index)
-    local _, _, root = getCharacter()
-    if not root then return Vector3.new(0, 0, 0), "no root" end
+function getPlantGridPoints()
     local searchRoot = getMyFarmFolder()
-    if not searchRoot then return Vector3.new(0, 0, 0), "owned farm not found" end
-    local best, bestDist = nil, 220
+    if not searchRoot then return nil, "owned farm not found" end
+    local parts = {}
     for _, obj in ipairs(searchRoot:GetDescendants()) do
         if obj:IsA("BasePart") then
             local n = obj.Name:lower()
             if n:find("can_plant", 1, true) then
-                local dist = (root.Position - obj.Position).Magnitude
-                if dist < bestDist then
-                    best = obj
-                    bestDist = dist
-                end
+                table.insert(parts, obj)
             end
         end
     end
-    if best then
-        local p = best.Position
-        local i = index or 1
-        local ox = ((i - 1) % 4) * 2.2 - 3.3
-        local oz = (math.floor((i - 1) / 4) % 3) * 2.2 - 2.2
-        return Vector3.new(p.X + ox, 0.1355266571044922, p.Z + oz), "owned farm Can_Plant"
+    if #parts == 0 then return nil, "owned Can_Plant not found" end
+    table.sort(parts, function(a, b)
+        if math.abs(a.Position.X - b.Position.X) > 0.01 then return a.Position.X < b.Position.X end
+        return a.Position.Z < b.Position.Z
+    end)
+    local points = {}
+    local spacing = 4
+    local margin = 3
+    for _, part in ipairs(parts) do
+        local cols = math.max(1, math.floor((part.Size.X - (margin * 2)) / spacing) + 1)
+        local rows = math.max(1, math.floor((part.Size.Z - (margin * 2)) / spacing) + 1)
+        local startX = -((cols - 1) * spacing) / 2
+        local startZ = -((rows - 1) * spacing) / 2
+        for r = 1, rows do
+            for c = 1, cols do
+                local localPos = Vector3.new(startX + ((c - 1) * spacing), 0.03, startZ + ((r - 1) * spacing))
+                local world = part.CFrame:PointToWorldSpace(localPos)
+                table.insert(points, Vector3.new(world.X, 0.1355266571044922, world.Z))
+            end
+        end
     end
-    return Vector3.new(0, 0, 0), "owned Can_Plant not found"
+    if #points == 0 then return nil, "owned grid empty" end
+    return points, "owned farm Can_Plant grid"
+end
+
+function getPlantPosition(index)
+    local _, _, root = getCharacter()
+    if not root then return Vector3.new(0, 0, 0), "no root" end
+    local points, source = getPlantGridPoints()
+    if not points then return Vector3.new(0, 0, 0), source end
+    local i = index or 1
+    local pointIndex = ((i - 1) % #points) + 1
+    return points[pointIndex], source
 end
 
 function teleportToPlantPosition()
@@ -1967,7 +2044,7 @@ function plantSelectedSeedBatch()
         if not autoFarmEnabled then return false, "stopped", planted end
         local pos
         pos, posSource = getPlantPosition(i)
-        if posSource ~= "owned farm Can_Plant" then return false, posSource, planted end
+        if posSource ~= "owned farm Can_Plant grid" then return false, posSource, planted end
         local ok = pcall(function() remote:FireServer(pos, seedName) end)
         if ok then planted = planted + 1 end
         if i == count or i == 1 or i == 6 or i == 12 then
@@ -2782,7 +2859,7 @@ if FallbackGui then
     FallbackBtn.Position = UDim2.new(0, 12, 0, 12)
     FallbackBtn.BackgroundColor3 = C.greenDark
     FallbackBtn.BorderSizePixel = 0
-    FallbackBtn.Text = "LowHub v4.1.39"
+    FallbackBtn.Text = "LowHub v4.1.40"
     FallbackBtn.TextColor3 = C.white
     FallbackBtn.TextSize = 11
     FallbackBtn.Font = Enum.Font.GothamBold
@@ -2846,7 +2923,7 @@ end)
 -- ============================================================
 -- INIT
 -- ============================================================
-pushLog("SYS", "LowHub v4.1.39 loaded - Grow a Garden", C.green)
+pushLog("SYS", "LowHub v4.1.40 loaded - Grow a Garden", C.green)
 pushLog("SYS", "ESP system ready - go to ESP tab to enable", C.purple)
 setStatus("Ready", C.green)
-print("[LowHub] v4.1.39 initialized")
+print("[LowHub] v4.1.40 initialized")
